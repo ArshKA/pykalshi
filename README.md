@@ -79,3 +79,16 @@ kalshi/
 
 - [Full Library Documentation](kalshi_api/docs.md)
 - [Official Kalshi API Reference](https://trading-api.readme.io/api-reference)
+
+## Web UI
+
+A local web interface is available for browsing markets.
+
+1. **Start the server:**
+   ```bash
+   uvicorn web.backend.main:app --reload
+   ```
+
+2. **Open in browser:**
+   Go to [http://localhost:8000](http://localhost:8000)
+

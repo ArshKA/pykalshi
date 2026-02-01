@@ -28,3 +28,7 @@ build/
 
 data/
 
+
+# Temp
+.pytest_cache/
+market.json
