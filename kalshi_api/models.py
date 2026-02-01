@@ -167,3 +167,71 @@ class CandlestickResponse(BaseModel):
     ticker: str
 
     model_config = ConfigDict(extra="ignore")
+
+
+# Orderbook Models
+class OrderbookLevel(BaseModel):
+    """A single price level in the orderbook (price, quantity)."""
+
+    price: int  # Price in cents (1-99)
+    quantity: int  # Number of contracts at this price level
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class Orderbook(BaseModel):
+    """Orderbook with yes/no price levels."""
+
+    yes: Optional[list[list[int]]] = None  # [[price, quantity], ...]
+    no: Optional[list[list[int]]] = None
+    yes_dollars: Optional[list[list[str]]] = None
+    no_dollars: Optional[list[list[str]]] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class OrderbookFp(BaseModel):
+    """Fixed-point orderbook data."""
+
+    yes_dollars: Optional[list[list[str]]] = None
+    no_dollars: Optional[list[list[str]]] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class OrderbookResponse(BaseModel):
+    """Pydantic model for the orderbook API response."""
+
+    orderbook: Orderbook
+    orderbook_fp: Optional[OrderbookFp] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+    @property
+    def yes_levels(self) -> list[OrderbookLevel]:
+        """Get YES price levels as typed objects."""
+        if not self.orderbook.yes:
+            return []
+        return [OrderbookLevel(price=p[0], quantity=p[1]) for p in self.orderbook.yes]
+
+    @property
+    def no_levels(self) -> list[OrderbookLevel]:
+        """Get NO price levels as typed objects."""
+        if not self.orderbook.no:
+            return []
+        return [OrderbookLevel(price=p[0], quantity=p[1]) for p in self.orderbook.no]
+
+    @property
+    def best_yes_bid(self) -> Optional[int]:
+        """Highest YES bid price, or None if no bids."""
+        if not self.orderbook.yes:
+            return None
+        return max(p[0] for p in self.orderbook.yes) if self.orderbook.yes else None
+
+    @property
+    def best_no_bid(self) -> Optional[int]:
+        """Highest NO bid price, or None if no bids."""
+        if not self.orderbook.no:
+            return None
+        return max(p[0] for p in self.orderbook.no) if self.orderbook.no else None
+

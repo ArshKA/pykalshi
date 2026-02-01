@@ -8,7 +8,15 @@ import logging
 
 from .client import KalshiClient
 from .portfolio import User
-from .models import PositionModel, FillModel, OrderModel, BalanceModel, MarketModel
+from .models import (
+    PositionModel,
+    FillModel,
+    OrderModel,
+    BalanceModel,
+    MarketModel,
+    OrderbookResponse,
+    CandlestickResponse,
+)
 
 # Set up logging to NullHandler by default to avoid "No handler found" warnings.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -21,4 +29,7 @@ __all__ = [
     "OrderModel",
     "BalanceModel",
     "MarketModel",
+    "OrderbookResponse",
+    "CandlestickResponse",
 ]
+

@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
-from .models import MarketModel, CandlestickResponse
+from typing import TYPE_CHECKING
+from .models import MarketModel, CandlestickResponse, OrderbookResponse
 from .enums import CandlestickPeriod
 
 if TYPE_CHECKING:
@@ -34,9 +34,14 @@ class Market:
         except Exception:
             return None
 
-    def get_orderbook(self) -> dict[str, Any]:
-        """Get the orderbook for this market."""
-        return self.client.get(f"/markets/{self.ticker}/orderbook")
+    def get_orderbook(self) -> OrderbookResponse:
+        """Get the orderbook for this market.
+        
+        Returns:
+            OrderbookResponse with yes/no price levels.
+        """
+        response = self.client.get(f"/markets/{self.ticker}/orderbook")
+        return OrderbookResponse.model_validate(response)
 
     def get_candlesticks(
         self,
