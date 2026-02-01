@@ -28,8 +28,9 @@ from .exceptions import (
     InsufficientFundsError,
     ResourceNotFoundError,
 )
+from .events import Event
 from .markets import Market
-from .models import MarketModel
+from .models import MarketModel, EventModel
 from .portfolio import User
 
 
@@ -272,9 +273,99 @@ class KalshiClient:
         markets = [Market(self, MarketModel.model_validate(m)) for m in markets_data]
         return markets, next_cursor
 
+    def get_event(self, event_ticker: str) -> Event:
+        """
+        Get an Event object by ticker.
+
+        Args:
+            event_ticker: The event ticker (e.g., "PRES-2024").
+
+        Returns:
+            Event object for the specified ticker.
+        """
+        response = self.get(f"/events/{event_ticker}")
+        data = response.get("event", response)
+        model = EventModel.model_validate(data)
+        return Event(self, model)
+
+    def get_events(
+        self,
+        series_ticker: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+        fetch_all: bool = False,
+    ) -> list[Event]:
+        """
+        Search for events.
+
+        Args:
+            series_ticker: Filter by series ticker.
+            status: Filter by event status.
+            limit: Maximum results per page (default: 100).
+            cursor: Pagination cursor for fetching next page.
+            fetch_all: If True, automatically fetch all pages.
+
+        Returns:
+            List of Event objects.
+        """
+        all_events: list[Event] = []
+        current_cursor = cursor
+
+        while True:
+            params = [f"limit={limit}"]
+            if series_ticker:
+                params.append(f"series_ticker={series_ticker}")
+            if status:
+                params.append(f"status={status}")
+            if current_cursor:
+                params.append(f"cursor={current_cursor}")
+
+            endpoint = f"/events?{'&'.join(params)}"
+            response = self.get(endpoint)
+            events_data = response.get("events", [])
+
+            events = [Event(self, EventModel.model_validate(e)) for e in events_data]
+            all_events.extend(events)
+
+            next_cursor = response.get("cursor", "")
+            if not fetch_all or not next_cursor:
+                break
+            current_cursor = next_cursor
+
+        return all_events
+
+    def get_events_paginated(
+        self,
+        series_ticker: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> tuple[list[Event], str]:
+        """
+        Search for events with pagination info.
+
+        Returns:
+            Tuple of (list of Event objects, next cursor string).
+        """
+        params = [f"limit={limit}"]
+        if series_ticker:
+            params.append(f"series_ticker={series_ticker}")
+        if status:
+            params.append(f"status={status}")
+        if cursor:
+            params.append(f"cursor={cursor}")
+
+        endpoint = f"/events?{'&'.join(params)}"
+        response = self.get(endpoint)
+        events_data = response.get("events", [])
+        next_cursor = response.get("cursor", "")
+
+        events = [Event(self, EventModel.model_validate(e)) for e in events_data]
+        return events, next_cursor
+
     def get_user(self) -> User:
         """
         Get the authenticated User object.
         """
         return User(self)
-

@@ -43,6 +43,29 @@ class MarketModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
+class EventModel(BaseModel):
+    """Pydantic model for Event data."""
+
+    event_ticker: str
+    series_ticker: str
+    title: Optional[str] = None
+    sub_title: Optional[str] = None
+    category: Optional[str] = None
+
+    # Event properties
+    mutually_exclusive: bool = False
+    collateral_return_type: Optional[str] = None
+
+    # Timing
+    strike_date: Optional[str] = None
+    strike_period: Optional[str] = None
+
+    # Availability
+    available_on_brokers: bool = False
+
+    model_config = ConfigDict(extra="ignore")
+
+
 class OrderModel(BaseModel):
     """Pydantic model for Order data."""
 
