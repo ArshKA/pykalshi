@@ -28,6 +28,7 @@ class MarketStatus(str, Enum):
     CLOSED = "closed"
     SETTLED = "settled"
     ACTIVE = "active"
+    FINALIZED = "finalized"
 
 
 class CandlestickPeriod(int, Enum):
