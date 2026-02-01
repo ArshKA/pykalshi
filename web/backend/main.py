@@ -138,6 +138,14 @@ def get_market_detail(ticker: str):
                 
         raise HTTPException(status_code=e.status_code, detail=str(e))
 
+@app.get("/api/portfolio/balance")
+def get_balance():
+    c = get_client()
+    try:
+        return c.portfolio.balance.model_dump()
+    except KalshiAPIError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+
 @app.get("/api/markets/{ticker}/orderbook", response_model=OrderbookResponse)
 def get_market_orderbook(ticker: str):
     c = get_client()

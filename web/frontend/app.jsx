@@ -196,7 +196,8 @@ const EventList = ({ seriesTicker, onBack, onSelectMarket }) => {
                                             >
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-sm text-zinc-300">{m.subtitle || m.ticker}</span>
+                                                        <span className="text-sm text-zinc-300 font-bold">{m.yes_sub_title || m.title}</span>
+                                                        {m.subtitle && <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1 rounded">{m.subtitle.replace(':: ', '')}</span>}
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase ${getStatusColor(m.status)}`}>{m.status}</span>
                                                     </div>
                                                     <div className="text-xs text-zinc-500 font-mono mt-0.5">Vol: {formatNumber(m.volume_24h)}</div>
@@ -689,7 +690,7 @@ const App = () => {
         const params = new URLSearchParams(window.location.search);
         return {
             ticker: params.get('ticker'),
-            series: params.get('series')
+            series: params.get('series') ? params.get('series').toUpperCase() : null
         };
     };
 
