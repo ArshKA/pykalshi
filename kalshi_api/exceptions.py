@@ -6,7 +6,10 @@ class KalshiAPIError(KalshiError):
     """Raised when the API returns a non-200 response."""
 
     def __init__(self, status_code: int, message: str, error_code: str | None = None):
-        super().__init__(f"{status_code}: {message} ({error_code})")
+        if error_code:
+            super().__init__(f"{status_code}: {message} ({error_code})")
+        else:
+            super().__init__(f"{status_code}: {message}")
         self.status_code = status_code
         self.message = message
         self.error_code = error_code

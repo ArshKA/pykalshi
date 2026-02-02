@@ -70,7 +70,8 @@ def get_client() -> KalshiClient:
     return client
 
 @app.get("/api/balance", response_model=BalanceModel)
-def get_balance():
+def get_balance_short():
+    """Get portfolio balance (short URL alias)."""
     c = get_client()
     try:
         return c.portfolio.balance
@@ -87,7 +88,11 @@ def list_markets(limit: int = 100, status: str = "open", ticker: Optional[str] =
             try:
                 market_status = MarketStatus(status)
             except ValueError:
-                pass 
+                valid_statuses = ["all"] + [s.value for s in MarketStatus]
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}"
+                )
         
         # 1. Fetch a larger pool to find active markets
         # Many markets have 0 volume, so we need to fetch enough to find the "alive" ones.
@@ -150,7 +155,8 @@ def get_market_detail(ticker: str):
         raise HTTPException(status_code=e.status_code, detail=str(e))
 
 @app.get("/api/portfolio/balance")
-def get_balance():
+def get_portfolio_balance():
+    """Get portfolio balance (full URL path)."""
     c = get_client()
     try:
         return c.portfolio.balance.model_dump()
@@ -346,6 +352,7 @@ async def market_websocket(websocket: WebSocket, ticker: str):
                 except json.JSONDecodeError:
                     pass
                 except WebSocketDisconnect:
+                    logger.info(f"Browser disconnected while forwarding for {ticker}")
                     break
 
     except WebSocketDisconnect:
@@ -354,7 +361,12 @@ async def market_websocket(websocket: WebSocket, ticker: str):
         logger.error(f"WebSocket error for {ticker}: {e}")
         try:
             await websocket.send_json({"error": str(e)})
-        except:
-            pass
+        except Exception:
+            pass  # Browser may already be disconnected
     finally:
+        # Ensure browser websocket is closed
         logger.info(f"Closing WebSocket for {ticker}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass  # Already closed

@@ -6,6 +6,7 @@ This module provides streaming market data through Kalshi's WebSocket API.
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import logging
 import threading
@@ -190,7 +191,7 @@ class Feed:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._running = False
-        self._cmd_id = 0
+        self._cmd_id_counter = itertools.count(1)  # Thread-safe counter
         self._connected = threading.Event()
         self._lock = threading.Lock()
 
@@ -403,9 +404,8 @@ class Feed:
         }
 
     def _next_id(self) -> int:
-        """Get next command ID."""
-        self._cmd_id += 1
-        return self._cmd_id
+        """Get next command ID (thread-safe)."""
+        return next(self._cmd_id_counter)
 
     async def _send_cmd(self, cmd: str, params: dict) -> None:
         """Send a command over the WebSocket."""

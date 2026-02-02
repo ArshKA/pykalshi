@@ -51,6 +51,7 @@ const MarketTerminal = ({ ticker, onBack }) => {
         const wsUrl = `${wsProtocol}//${window.location.host}/ws/market/${ticker}`;
         let ws = null;
         let reconnectTimeout = null;
+        let reconnectDelay = 1000; // Start at 1s, exponential backoff
         let orderbookState = { yes: new Map(), no: new Map() };
 
         const connect = () => {
@@ -59,14 +60,15 @@ const MarketTerminal = ({ ticker, onBack }) => {
             ws.onopen = () => {
                 console.log(`WebSocket connected for ${ticker}`);
                 setWsConnected(true);
+                reconnectDelay = 1000; // Reset on successful connection
             };
 
             ws.onclose = (e) => {
                 console.log(`WebSocket closed for ${ticker}`, e.code);
                 setWsConnected(false);
-                // Reconnect after 2 seconds
                 if (!e.wasClean) {
-                    reconnectTimeout = setTimeout(connect, 2000);
+                    reconnectTimeout = setTimeout(connect, reconnectDelay);
+                    reconnectDelay = Math.min(reconnectDelay * 2, 30000); // Max 30s
                 }
             };
 
