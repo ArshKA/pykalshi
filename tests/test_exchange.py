@@ -62,17 +62,18 @@ class TestExchangeSchedule:
     def test_get_schedule(self, client, mock_response):
         """Test fetching exchange schedule."""
         client._session.request.return_value = mock_response({
-            "schedule": [
-                {"start_time": "2024-01-01T09:00:00Z", "end_time": "2024-01-01T17:00:00Z"},
-                {"start_time": "2024-01-02T09:00:00Z", "end_time": "2024-01-02T17:00:00Z"},
-            ]
+            "schedule": {
+                "standard_hours": [
+                    {"monday": [{"open_time": "00:00", "close_time": "00:00"}]}
+                ],
+                "maintenance_windows": [],
+            }
         })
 
         schedule = client.exchange.get_schedule()
 
-        assert len(schedule.schedule) == 2
-        assert schedule.schedule[0].start_time == "2024-01-01T09:00:00Z"
-        assert schedule.schedule[0].end_time == "2024-01-01T17:00:00Z"
+        assert "standard_hours" in schedule
+        assert len(schedule["standard_hours"]) == 1
         client._session.request.assert_called_with(
             "GET",
             "https://demo-api.elections.kalshi.com/trade-api/v2/exchange/schedule",
@@ -82,11 +83,11 @@ class TestExchangeSchedule:
 
     def test_get_schedule_empty(self, client, mock_response):
         """Test empty schedule response."""
-        client._session.request.return_value = mock_response({"schedule": []})
+        client._session.request.return_value = mock_response({"schedule": {}})
 
         schedule = client.exchange.get_schedule()
 
-        assert len(schedule.schedule) == 0
+        assert schedule == {}
 
 
 class TestExchangeAnnouncements:

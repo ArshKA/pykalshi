@@ -10,6 +10,7 @@ const StatusPage = ({ onBack }) => {
                 if (!res.ok) throw new Error('Failed to fetch status');
                 const json = await res.json();
                 setData(json);
+                setError(null);
             } catch (e) {
                 setError(e.message);
             } finally {
@@ -32,6 +33,17 @@ const StatusPage = ({ onBack }) => {
             minute: '2-digit',
             timeZoneName: 'short'
         });
+    };
+
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const formatHours = (hours) => {
+        if (!hours || hours.length === 0) return 'Closed';
+        return hours.map(h => {
+            if (h.open_time === '00:00' && h.close_time === '00:00') return '24h';
+            return `${h.open_time} - ${h.close_time}`;
+        }).join(', ');
     };
 
     return (
@@ -83,16 +95,32 @@ const StatusPage = ({ onBack }) => {
                             </div>
                         </div>
 
-                        {/* Schedule */}
-                        {data.schedule && data.schedule.length > 0 && (
+                        {/* Weekly Schedule */}
+                        {data.schedule?.standard_hours?.[0] && (
                             <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
-                                <h2 className="text-lg font-semibold text-white mb-4">Trading Schedule</h2>
-                                <div className="space-y-3">
-                                    {data.schedule.slice(0, 5).map((s, i) => (
-                                        <div key={i} className="flex justify-between text-sm border-b border-zinc-800 pb-2 last:border-0">
-                                            <span className="text-zinc-400">{formatTime(s.start_time)}</span>
-                                            <span className="text-zinc-600">→</span>
-                                            <span className="text-zinc-400">{formatTime(s.end_time)}</span>
+                                <h2 className="text-lg font-semibold text-white mb-4">Trading Hours (ET)</h2>
+                                <div className="space-y-2">
+                                    {days.map((day, i) => {
+                                        const hours = data.schedule.standard_hours[0][day];
+                                        return (
+                                            <div key={day} className="flex justify-between text-sm py-1 border-b border-zinc-800/50 last:border-0">
+                                                <span className="text-zinc-400 w-12">{dayLabels[i]}</span>
+                                                <span className="text-zinc-300 font-mono">{formatHours(hours)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Maintenance Windows */}
+                        {data.schedule?.maintenance_windows?.length > 0 && (
+                            <div className="bg-[#18181b] border border-yellow-800/50 rounded-xl p-6">
+                                <h2 className="text-lg font-semibold text-yellow-500 mb-4">Scheduled Maintenance</h2>
+                                <div className="space-y-2">
+                                    {data.schedule.maintenance_windows.map((w, i) => (
+                                        <div key={i} className="text-sm text-zinc-400">
+                                            {formatTime(w.start_time)} → {formatTime(w.end_time)}
                                         </div>
                                     ))}
                                 </div>

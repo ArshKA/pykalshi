@@ -291,21 +291,6 @@ class ExchangeStatus(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
-class ScheduleEntry(BaseModel):
-    """A single schedule entry (open/close time)."""
-    start_time: str
-    end_time: str
-
-    model_config = ConfigDict(extra="ignore")
-
-
-class ExchangeSchedule(BaseModel):
-    """Exchange trading schedule."""
-    schedule: list[ScheduleEntry]
-
-    model_config = ConfigDict(extra="ignore")
-
-
 class Announcement(BaseModel):
     """Exchange announcement."""
     id: Optional[str] = None

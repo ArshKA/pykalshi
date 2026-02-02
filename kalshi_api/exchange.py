@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from .models import ExchangeStatus, ExchangeSchedule, Announcement, ScheduleEntry
+from typing import TYPE_CHECKING, Any
+from .models import ExchangeStatus, Announcement
 
 if TYPE_CHECKING:
     from .client import KalshiClient
@@ -23,11 +23,10 @@ class Exchange:
         """Quick check if trading is currently active."""
         return self.status.trading_active
 
-    def get_schedule(self) -> ExchangeSchedule:
-        """Get exchange trading schedule."""
+    def get_schedule(self) -> dict[str, Any]:
+        """Get exchange trading schedule (raw format)."""
         data = self._client.get("/exchange/schedule")
-        entries = [ScheduleEntry.model_validate(s) for s in data.get("schedule", [])]
-        return ExchangeSchedule(schedule=entries)
+        return data.get("schedule", {})
 
     def get_announcements(self) -> list[Announcement]:
         """Get exchange-wide announcements."""

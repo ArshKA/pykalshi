@@ -5,8 +5,6 @@ from kalshi_api.models import (
     MarketModel,
     FillModel,
     ExchangeStatus,
-    ExchangeSchedule,
-    ScheduleEntry,
     Announcement,
     APILimits,
     RateLimitTier,
@@ -88,26 +86,6 @@ def test_exchange_status_model():
     model = ExchangeStatus.model_validate(data)
     assert model.exchange_active is True
     assert model.trading_active is False
-
-
-def test_schedule_entry_model():
-    """Test ScheduleEntry model validation."""
-    data = {"start_time": "2024-01-01T09:00:00Z", "end_time": "2024-01-01T17:00:00Z"}
-    model = ScheduleEntry.model_validate(data)
-    assert model.start_time == "2024-01-01T09:00:00Z"
-    assert model.end_time == "2024-01-01T17:00:00Z"
-
-
-def test_exchange_schedule_model():
-    """Test ExchangeSchedule model validation."""
-    data = {
-        "schedule": [
-            {"start_time": "2024-01-01T09:00:00Z", "end_time": "2024-01-01T17:00:00Z"},
-        ]
-    }
-    model = ExchangeSchedule.model_validate(data)
-    assert len(model.schedule) == 1
-    assert isinstance(model.schedule[0], ScheduleEntry)
 
 
 def test_announcement_model():
