@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalshi Markets</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -39,8 +40,22 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
+
 <body>
     <div id="root"></div>
+
+    <!-- Utils (must load first) -->
+    <script type="text/babel" src="/utils.js"></script>
+
+    <!-- Components (load before App) -->
+    <script type="text/babel" src="/components/LandingPage.jsx"></script>
+    <script type="text/babel" src="/components/EventList.jsx"></script>
+    <script type="text/babel" src="/components/Orderbook.jsx"></script>
+    <script type="text/babel" src="/components/SimpleChart.jsx"></script>
+    <script type="text/babel" src="/components/MarketTerminal.jsx"></script>
+
+    <!-- Main App (must load last) -->
     <script type="text/babel" src="/app.jsx"></script>
 </body>
+
 </html>
