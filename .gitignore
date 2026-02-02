@@ -32,3 +32,6 @@ data/
 # Temp
 .pytest_cache/
 market.json
+
+# Claude Code
+CLAUDE.md
