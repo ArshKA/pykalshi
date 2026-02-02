@@ -11,6 +11,15 @@ from .events import Event
 from .markets import Market
 from .orders import Order
 from .portfolio import Portfolio
+from .feed import (
+    Feed,
+    TickerMessage,
+    OrderbookSnapshotMessage,
+    OrderbookDeltaMessage,
+    OrderbookMessage,
+    TradeMessage,
+    FillMessage,
+)
 from .enums import (
     Side,
     Action,
@@ -35,6 +44,7 @@ from .exceptions import (
     AuthenticationError,
     InsufficientFundsError,
     ResourceNotFoundError,
+    RateLimitError,
 )
 
 # Set up logging to NullHandler by default to avoid "No handler found" warnings.
@@ -48,6 +58,14 @@ __all__ = [
     "Market",
     "Order",
     "Portfolio",
+    # Feed (WebSocket)
+    "Feed",
+    "TickerMessage",
+    "OrderbookSnapshotMessage",
+    "OrderbookDeltaMessage",
+    "OrderbookMessage",
+    "TradeMessage",
+    "FillMessage",
     # Enums
     "Side",
     "Action",
@@ -70,4 +88,5 @@ __all__ = [
     "AuthenticationError",
     "InsufficientFundsError",
     "ResourceNotFoundError",
+    "RateLimitError",
 ]

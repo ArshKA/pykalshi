@@ -26,12 +26,14 @@ from .exceptions import (
     AuthenticationError,
     InsufficientFundsError,
     ResourceNotFoundError,
+    RateLimitError,
 )
 from .events import Event
 from .markets import Market
 from .models import MarketModel, EventModel
 from .portfolio import Portfolio
 from .enums import MarketStatus
+from .feed import Feed
 
 
 # Default configuration
@@ -45,7 +47,7 @@ class KalshiClient:
     """Authenticated client for the Kalshi Trading API.
 
     Usage:
-        client = KalshiClient()  # Uses env vars
+        client = KalshiClient.from_env()  # Loads .env file
         client = KalshiClient(api_key_id="...", private_key_path="...")
     """
 
@@ -61,16 +63,13 @@ class KalshiClient:
         """Initialize the Kalshi client.
 
         Args:
-            api_key_id: API key ID. Defaults to KALSHI_API_KEY_ID env var.
-            private_key_path: Path to private key file. Defaults to KALSHI_PRIVATE_KEY_PATH env var.
+            api_key_id: API key ID. Falls back to KALSHI_API_KEY_ID env var.
+            private_key_path: Path to private key file. Falls back to KALSHI_PRIVATE_KEY_PATH env var.
             api_base: API base URL. Defaults to production or demo based on `demo` flag.
             demo: If True, use demo environment. Ignored if api_base is provided.
             timeout: Request timeout in seconds (default 10).
             max_retries: Max retries for transient failures (default 3). Set to 0 to disable.
         """
-        from dotenv import load_dotenv
-        load_dotenv()
-
         self.api_key_id = api_key_id or os.getenv("KALSHI_API_KEY_ID")
         private_key_path = private_key_path or os.getenv("KALSHI_PRIVATE_KEY_PATH")
 
@@ -84,9 +83,22 @@ class KalshiClient:
             )
 
         self.api_base = api_base or (DEMO_API_BASE if demo else DEFAULT_API_BASE)
+        self._api_path = urlparse(self.api_base).path
         self.timeout = timeout
         self.max_retries = max_retries
         self.private_key = self._load_private_key(private_key_path)
+        self._session = requests.Session()
+
+    @classmethod
+    def from_env(cls, **kwargs) -> "KalshiClient":
+        """Create client from .env file.
+
+        Loads dotenv before reading env vars. All keyword arguments
+        are forwarded to the constructor.
+        """
+        from dotenv import load_dotenv
+        load_dotenv()
+        return cls(**kwargs)
 
     def _load_private_key(self, key_path: str) -> RSAPrivateKey:
         """Load RSA private key from PEM file."""
@@ -113,7 +125,7 @@ class KalshiClient:
     def _get_headers(self, method: str, endpoint: str) -> dict[str, str]:
         """Generate authenticated headers."""
         path_without_query = urlparse(endpoint).path
-        full_path = f"/trade-api/v2{path_without_query}"
+        full_path = f"{self._api_path}{path_without_query}"
         timestamp, signature = self._sign_request(method, full_path)
         return {
             "Content-Type": "application/json",
@@ -154,8 +166,7 @@ class KalshiClient:
 
     def _request(
         self,
-        method_func,
-        method_name: str,
+        method: str,
         endpoint: str,
         **kwargs,
     ) -> requests.Response:
@@ -167,10 +178,10 @@ class KalshiClient:
         url = f"{self.api_base}{endpoint}"
 
         for attempt in range(self.max_retries + 1):
-            headers = self._get_headers(method_name, endpoint)
+            headers = self._get_headers(method, endpoint)
             try:
-                response = method_func(
-                    url, headers=headers, timeout=self.timeout, **kwargs
+                response = self._session.request(
+                    method, url, headers=headers, timeout=self.timeout, **kwargs
                 )
             except (
                 requests.exceptions.Timeout,
@@ -181,7 +192,7 @@ class KalshiClient:
                 wait = min(2 ** attempt * 0.5, 30)
                 logger.warning(
                     "%s %s failed (%s), retry %d/%d in %.1fs",
-                    method_name, endpoint, type(e).__name__,
+                    method, endpoint, type(e).__name__,
                     attempt + 1, self.max_retries, wait,
                 )
                 time.sleep(wait)
@@ -190,6 +201,8 @@ class KalshiClient:
             if response.status_code not in _RETRYABLE_STATUS_CODES:
                 return response
             if attempt == self.max_retries:
+                if response.status_code == 429:
+                    raise RateLimitError(429, "Rate limit exceeded after retries")
                 return response
 
             retry_after = response.headers.get("Retry-After")
@@ -200,7 +213,7 @@ class KalshiClient:
 
             logger.warning(
                 "%s %s returned %d, retry %d/%d in %.1fs",
-                method_name, endpoint, response.status_code,
+                method, endpoint, response.status_code,
                 attempt + 1, self.max_retries, wait,
             )
             time.sleep(wait)
@@ -210,7 +223,7 @@ class KalshiClient:
     def get(self, endpoint: str) -> dict[str, Any]:
         """Make authenticated GET request."""
         logger.debug("GET %s", endpoint)
-        response = self._request(requests.get, "GET", endpoint)
+        response = self._request("GET", endpoint)
         return self._handle_response(response)
 
     def paginated_get(
@@ -245,13 +258,13 @@ class KalshiClient:
         """Make authenticated POST request."""
         logger.debug("POST %s", endpoint)
         body = json.dumps(data, separators=(",", ":"))
-        response = self._request(requests.post, "POST", endpoint, data=body)
+        response = self._request("POST", endpoint, data=body)
         return self._handle_response(response)
 
     def delete(self, endpoint: str) -> dict[str, Any]:
         """Make authenticated DELETE request."""
         logger.debug("DELETE %s", endpoint)
-        response = self._request(requests.delete, "DELETE", endpoint)
+        response = self._request("DELETE", endpoint)
         return self._handle_response(response)
 
     # --- Domain methods ---
@@ -261,11 +274,28 @@ class KalshiClient:
         """The authenticated user's portfolio."""
         return Portfolio(self)
 
+    def feed(self) -> Feed:
+        """Create a new real-time data feed.
+
+        Returns a Feed instance for streaming market data via WebSocket.
+        Each call creates a new Feed - use a single Feed for all subscriptions.
+
+        Usage:
+            feed = client.feed()
+
+            @feed.on("ticker")
+            def handle_ticker(msg):
+                print(f"{msg.market_ticker}: {msg.yes_bid}/{msg.yes_ask}")
+
+            feed.subscribe("ticker", market_ticker="KXBTC-26JAN")
+            feed.start()
+        """
+        return Feed(self)
+
     def get_market(self, ticker: str) -> Market:
         """Get a Market by ticker."""
         response = self.get(f"/markets/{ticker}")
-        data = response.get("market", response)
-        model = MarketModel.model_validate(data)
+        model = MarketModel.model_validate(response["market"])
         return Market(self, model)
 
     def get_markets(
@@ -300,8 +330,7 @@ class KalshiClient:
     def get_event(self, event_ticker: str) -> Event:
         """Get an Event by ticker."""
         response = self.get(f"/events/{event_ticker}")
-        data = response.get("event", response)
-        model = EventModel.model_validate(data)
+        model = EventModel.model_validate(response["event"])
         return Event(self, model)
 
     def get_events(

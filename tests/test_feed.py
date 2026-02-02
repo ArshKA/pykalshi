@@ -1,0 +1,528 @@
+"""Tests for the WebSocket Feed module."""
+
+import json
+import pytest
+from unittest.mock import MagicMock
+
+from kalshi_api.feed import (
+    Feed,
+    TickerMessage,
+    OrderbookSnapshotMessage,
+    OrderbookDeltaMessage,
+    TradeMessage,
+    FillMessage,
+    DEFAULT_WS_BASE,
+    DEMO_WS_BASE,
+)
+
+
+class TestFeedCreation:
+    """Tests for Feed initialization."""
+
+    def test_demo_url(self, client):
+        """Feed uses demo WS URL when client is in demo mode."""
+        feed = Feed(client)
+        assert feed._ws_url == DEMO_WS_BASE
+
+    def test_production_url(self, client):
+        """Feed uses production WS URL when client is in production mode."""
+        client.api_base = "https://api.elections.kalshi.com/trade-api/v2"
+        feed = Feed(client)
+        assert feed._ws_url == DEFAULT_WS_BASE
+
+    def test_initial_state(self, client):
+        """Feed starts in disconnected state with no subs or handlers."""
+        feed = Feed(client)
+        assert not feed.is_connected
+        assert feed._active_subs == []
+        assert feed._handlers == {}
+        assert feed._running is False
+
+    def test_client_feed_method(self, client):
+        """client.feed() returns a new Feed instance."""
+        feed = client.feed()
+        assert isinstance(feed, Feed)
+        assert feed._client is client
+
+
+class TestHandlerRegistration:
+    """Tests for handler registration via on()."""
+
+    def test_on_direct_call(self, client):
+        """on() can register handler via direct call."""
+        feed = Feed(client)
+        handler = MagicMock()
+        feed.on("ticker", handler)
+        assert feed._handlers["ticker"] == [handler]
+
+    def test_on_decorator(self, client):
+        """on() can be used as a decorator."""
+        feed = Feed(client)
+
+        @feed.on("ticker")
+        def handler(msg):
+            pass
+
+        assert feed._handlers["ticker"] == [handler]
+
+    def test_on_decorator_preserves_function(self, client):
+        """Decorator returns the original function unchanged."""
+        feed = Feed(client)
+
+        def original(msg):
+            return 42
+
+        decorated = feed.on("ticker")(original)
+        assert decorated is original
+        assert decorated(None) == 42
+
+    def test_multiple_handlers_same_channel(self, client):
+        """Multiple handlers can be registered for the same channel."""
+        feed = Feed(client)
+        h1 = MagicMock()
+        h2 = MagicMock()
+        feed.on("ticker", h1)
+        feed.on("ticker", h2)
+        assert feed._handlers["ticker"] == [h1, h2]
+
+    def test_handlers_different_channels(self, client):
+        """Handlers for different channels are stored separately."""
+        feed = Feed(client)
+        h1 = MagicMock()
+        h2 = MagicMock()
+        feed.on("ticker", h1)
+        feed.on("trade", h2)
+        assert feed._handlers["ticker"] == [h1]
+        assert feed._handlers["trade"] == [h2]
+
+
+class TestSubscriptions:
+    """Tests for subscription management."""
+
+    def test_subscribe_stores_params(self, client):
+        """subscribe() stores subscription parameters."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_ticker="ABC-123")
+        assert len(feed._active_subs) == 1
+        assert feed._active_subs[0] == {
+            "channels": ["ticker"],
+            "market_ticker": "ABC-123",
+        }
+
+    def test_subscribe_multiple_tickers(self, client):
+        """subscribe() supports multiple market tickers."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_tickers=["A", "B", "C"])
+        assert feed._active_subs[0]["market_tickers"] == ["A", "B", "C"]
+
+    def test_subscribe_no_market_filter(self, client):
+        """subscribe() works without market filter (for fill channel)."""
+        feed = Feed(client)
+        feed.subscribe("fill")
+        assert feed._active_subs[0] == {"channels": ["fill"]}
+
+    def test_multiple_subscriptions(self, client):
+        """Multiple subscriptions are tracked independently."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_ticker="ABC")
+        feed.subscribe("trade", market_ticker="DEF")
+        feed.subscribe("fill")
+        assert len(feed._active_subs) == 3
+
+    def test_unsubscribe_removes_matching(self, client):
+        """unsubscribe() removes the matching subscription."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_ticker="ABC")
+        feed.subscribe("trade", market_ticker="DEF")
+        feed.unsubscribe("ticker", market_ticker="ABC")
+        assert len(feed._active_subs) == 1
+        assert feed._active_subs[0]["channels"] == ["trade"]
+
+    def test_unsubscribe_no_match(self, client):
+        """unsubscribe() is safe when no matching subscription exists."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_ticker="ABC")
+        feed.unsubscribe("ticker", market_ticker="XYZ")  # Different ticker
+        assert len(feed._active_subs) == 1  # Original still there
+
+
+class TestDispatch:
+    """Tests for message dispatch and parsing."""
+
+    def test_ticker_message(self, client):
+        """Ticker messages are parsed and dispatched correctly."""
+        feed = Feed(client)
+        received = []
+        feed.on("ticker", received.append)
+
+        raw = json.dumps({
+            "type": "ticker",
+            "sid": 1,
+            "seq": 1,
+            "msg": {
+                "market_ticker": "ABC-123",
+                "yes_bid": 45,
+                "yes_ask": 55,
+                "volume": 1000,
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        msg = received[0]
+        assert isinstance(msg, TickerMessage)
+        assert msg.market_ticker == "ABC-123"
+        assert msg.yes_bid == 45
+        assert msg.yes_ask == 55
+        assert msg.volume == 1000
+
+    def test_orderbook_snapshot_dispatches_to_delta_handlers(self, client):
+        """orderbook_snapshot messages go to orderbook_delta handlers."""
+        feed = Feed(client)
+        received = []
+        feed.on("orderbook_delta", received.append)
+
+        raw = json.dumps({
+            "type": "orderbook_snapshot",
+            "sid": 2,
+            "seq": 1,
+            "msg": {
+                "market_ticker": "ABC-123",
+                "yes": [[45, 100], [50, 200]],
+                "no": [[55, 150]],
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        msg = received[0]
+        assert isinstance(msg, OrderbookSnapshotMessage)
+        assert msg.market_ticker == "ABC-123"
+        assert msg.yes == [(45, 100), (50, 200)]
+        assert msg.no == [(55, 150)]
+
+    def test_orderbook_delta_message(self, client):
+        """orderbook_delta messages are parsed correctly."""
+        feed = Feed(client)
+        received = []
+        feed.on("orderbook_delta", received.append)
+
+        raw = json.dumps({
+            "type": "orderbook_delta",
+            "sid": 2,
+            "seq": 2,
+            "msg": {
+                "market_ticker": "ABC-123",
+                "price": 45,
+                "delta": -10,
+                "side": "yes",
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        msg = received[0]
+        assert isinstance(msg, OrderbookDeltaMessage)
+        assert msg.price == 45
+        assert msg.delta == -10
+        assert msg.side == "yes"
+
+    def test_trade_message(self, client):
+        """Trade messages are parsed correctly."""
+        feed = Feed(client)
+        received = []
+        feed.on("trade", received.append)
+
+        raw = json.dumps({
+            "type": "trade",
+            "sid": 3,
+            "seq": 1,
+            "msg": {
+                "market_ticker": "ABC-123",
+                "trade_id": "trade-1",
+                "count": 10,
+                "yes_price": 55,
+                "taker_side": "yes",
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        msg = received[0]
+        assert isinstance(msg, TradeMessage)
+        assert msg.trade_id == "trade-1"
+        assert msg.count == 10
+        assert msg.yes_price == 55
+        assert msg.taker_side == "yes"
+
+    def test_fill_message(self, client):
+        """Fill messages are parsed correctly."""
+        feed = Feed(client)
+        received = []
+        feed.on("fill", received.append)
+
+        raw = json.dumps({
+            "type": "fill",
+            "sid": 4,
+            "seq": 1,
+            "msg": {
+                "trade_id": "fill-1",
+                "ticker": "ABC-123",
+                "order_id": "ord-1",
+                "side": "yes",
+                "action": "buy",
+                "count": 5,
+                "yes_price": 60,
+                "is_taker": True,
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        msg = received[0]
+        assert isinstance(msg, FillMessage)
+        assert msg.trade_id == "fill-1"
+        assert msg.order_id == "ord-1"
+        assert msg.is_taker is True
+
+    def test_no_handler_registered(self, client):
+        """Messages are silently dropped when no handler is registered."""
+        feed = Feed(client)
+        raw = json.dumps({
+            "type": "ticker",
+            "sid": 1,
+            "seq": 1,
+            "msg": {"market_ticker": "X"}
+        })
+        # Should not raise
+        feed._dispatch(raw)
+
+    def test_handler_error_logged_not_raised(self, client):
+        """Handler exceptions are logged but don't crash the feed."""
+        feed = Feed(client)
+
+        def bad_handler(msg):
+            raise ValueError("boom")
+
+        feed.on("ticker", bad_handler)
+        raw = json.dumps({
+            "type": "ticker",
+            "sid": 1,
+            "seq": 1,
+            "msg": {"market_ticker": "X"}
+        })
+        # Should not raise
+        feed._dispatch(raw)
+
+    def test_multiple_handlers_all_called(self, client):
+        """All registered handlers are called for each message."""
+        feed = Feed(client)
+        h1 = MagicMock()
+        h2 = MagicMock()
+        feed.on("ticker", h1)
+        feed.on("ticker", h2)
+
+        raw = json.dumps({
+            "type": "ticker",
+            "sid": 1,
+            "seq": 1,
+            "msg": {"market_ticker": "X"}
+        })
+        feed._dispatch(raw)
+
+        h1.assert_called_once()
+        h2.assert_called_once()
+
+    def test_malformed_json_handled(self, client):
+        """Malformed JSON is handled gracefully."""
+        feed = Feed(client)
+        feed.on("ticker", MagicMock())
+        # Should not raise
+        feed._dispatch("not json{{{")
+        feed._dispatch(b"also not json")
+
+    def test_missing_type_field(self, client):
+        """Messages without type field are ignored."""
+        feed = Feed(client)
+        h = MagicMock()
+        feed.on("ticker", h)
+
+        raw = json.dumps({"msg": {"market_ticker": "X"}})
+        feed._dispatch(raw)
+        h.assert_not_called()
+
+    def test_unknown_type_passes_raw_dict(self, client):
+        """Unknown message types pass raw dict to handlers."""
+        feed = Feed(client)
+        received = []
+        feed.on("unknown_channel", received.append)
+
+        raw = json.dumps({
+            "type": "unknown_channel",
+            "sid": 1,
+            "seq": 1,
+            "msg": {"foo": "bar"}
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        assert received[0] == {"foo": "bar"}
+
+    def test_extra_fields_ignored(self, client):
+        """Extra fields in messages don't cause errors."""
+        feed = Feed(client)
+        received = []
+        feed.on("ticker", received.append)
+
+        raw = json.dumps({
+            "type": "ticker",
+            "sid": 1,
+            "seq": 1,
+            "msg": {
+                "market_ticker": "ABC",
+                "future_field": "unknown",
+                "another_new_thing": 42,
+            }
+        })
+        feed._dispatch(raw)
+
+        assert len(received) == 1
+        assert isinstance(received[0], TickerMessage)
+        assert received[0].market_ticker == "ABC"
+
+
+class TestAuthHeaders:
+    """Tests for authentication header generation."""
+
+    def test_auth_headers_structure(self, client):
+        """Auth headers contain required fields."""
+        feed = Feed(client)
+        headers = feed._auth_headers()
+        assert "KALSHI-ACCESS-KEY" in headers
+        assert "KALSHI-ACCESS-SIGNATURE" in headers
+        assert "KALSHI-ACCESS-TIMESTAMP" in headers
+
+    def test_auth_headers_uses_client_key(self, client):
+        """Auth headers use the client's API key."""
+        feed = Feed(client)
+        headers = feed._auth_headers()
+        assert headers["KALSHI-ACCESS-KEY"] == "fake_key"
+
+
+class TestRepr:
+    """Tests for Feed string representation."""
+
+    def test_repr_disconnected(self, client):
+        """Repr shows disconnected state."""
+        feed = Feed(client)
+        assert "disconnected" in repr(feed)
+        assert "subs=0" in repr(feed)
+
+    def test_repr_with_subs(self, client):
+        """Repr shows subscription count."""
+        feed = Feed(client)
+        feed.subscribe("ticker", market_ticker="ABC")
+        feed.subscribe("trade", market_ticker="DEF")
+        assert "subs=2" in repr(feed)
+
+
+class TestMessageModels:
+    """Tests for Pydantic message models."""
+
+    def test_ticker_model_optional_fields(self):
+        """TickerMessage handles optional fields."""
+        msg = TickerMessage(market_ticker="TEST")
+        assert msg.market_ticker == "TEST"
+        assert msg.yes_bid is None
+        assert msg.volume is None
+
+    def test_ticker_model_all_fields(self):
+        """TickerMessage accepts all fields."""
+        msg = TickerMessage(
+            market_ticker="TEST",
+            price=50,
+            yes_bid=45,
+            yes_ask=55,
+            volume=1000,
+            open_interest=500,
+            dollar_volume=50000,
+            dollar_open_interest=25000,
+            ts=1234567890,
+        )
+        assert msg.yes_bid == 45
+        assert msg.ts == 1234567890
+
+    def test_orderbook_snapshot_model(self):
+        """OrderbookSnapshotMessage parses correctly."""
+        msg = OrderbookSnapshotMessage(
+            market_ticker="TEST",
+            yes=[(45, 100), (50, 200)],
+            no=[(55, 150)],
+        )
+        assert len(msg.yes) == 2
+        assert msg.yes[0] == (45, 100)
+        assert msg.no[0] == (55, 150)
+
+    def test_orderbook_delta_model(self):
+        """OrderbookDeltaMessage parses correctly."""
+        msg = OrderbookDeltaMessage(
+            market_ticker="TEST",
+            price=45,
+            delta=-10,
+            side="yes",
+        )
+        assert msg.delta == -10
+        assert msg.side == "yes"
+
+    def test_trade_model(self):
+        """TradeMessage parses correctly."""
+        msg = TradeMessage(
+            market_ticker="TEST",
+            trade_id="t1",
+            count=10,
+            yes_price=55,
+            taker_side="yes",
+        )
+        assert msg.trade_id == "t1"
+        assert msg.taker_side == "yes"
+
+    def test_fill_model(self):
+        """FillMessage parses correctly."""
+        msg = FillMessage(
+            trade_id="f1",
+            ticker="TEST",
+            order_id="o1",
+            side="yes",
+            action="buy",
+            count=5,
+            yes_price=60,
+            is_taker=True,
+        )
+        assert msg.count == 5
+        assert msg.is_taker is True
+
+    def test_models_ignore_extra_fields(self):
+        """Models ignore unknown fields (forward compatibility)."""
+        msg = TickerMessage(
+            market_ticker="TEST",
+            unknown_future_field="surprise",
+        )
+        assert msg.market_ticker == "TEST"
+        assert not hasattr(msg, "unknown_future_field")
+
+
+class TestLifecycle:
+    """Tests for start/stop lifecycle."""
+
+    def test_double_start_is_noop(self, client):
+        """Starting an already-started feed is a no-op."""
+        feed = Feed(client)
+        feed._running = True
+        feed.start()  # Should not create a new thread
+        assert feed._thread is None  # No thread created
+
+    def test_stop_when_not_started_is_safe(self, client):
+        """Stopping a never-started feed is safe."""
+        feed = Feed(client)
+        feed.stop()  # Should not raise
+        assert not feed.is_connected

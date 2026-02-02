@@ -10,7 +10,8 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
     "python-dotenv>=1.0.0",
-    "aiofiles>=23.0.0"
+    "aiofiles>=23.0.0",
+    "websockets>=11.0",
 ]
 
 [tool.setuptools]
