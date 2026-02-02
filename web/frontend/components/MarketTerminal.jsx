@@ -1,9 +1,26 @@
+/**
+ * MarketTerminal Component
+ *
+ * Main market detail page with real-time WebSocket updates for:
+ * - Order book (via orderbook_snapshot + orderbook_delta)
+ * - Price/Volume/OI (via ticker channel)
+ */
 const MarketTerminal = ({ ticker, onBack }) => {
     const [market, setMarket] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [balance, setBalance] = useState(null);
 
+    // Real-time state from WebSocket
+    const [orderbook, setOrderbook] = useState({ yes: [], no: [] });
+    const [wsConnected, setWsConnected] = useState(false);
+    const [livePrice, setLivePrice] = useState(null);
+    const [liveVolume, setLiveVolume] = useState(null);
+    const [liveOI, setLiveOI] = useState(null);
+    const [liveYesBid, setLiveYesBid] = useState(null);
+    const [liveYesAsk, setLiveYesAsk] = useState(null);
+
+    // Fetch initial market data
     useEffect(() => {
         fetch(`/api/markets/${ticker}`)
             .then(async res => {
@@ -26,6 +43,103 @@ const MarketTerminal = ({ ticker, onBack }) => {
             .catch(console.error);
     }, [ticker]);
 
+    // WebSocket connection for real-time updates
+    useEffect(() => {
+        if (!ticker) return;
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/market/${ticker}`;
+        let ws = null;
+        let reconnectTimeout = null;
+        let orderbookState = { yes: new Map(), no: new Map() };
+
+        const connect = () => {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log(`WebSocket connected for ${ticker}`);
+                setWsConnected(true);
+            };
+
+            ws.onclose = (e) => {
+                console.log(`WebSocket closed for ${ticker}`, e.code);
+                setWsConnected(false);
+                // Reconnect after 2 seconds
+                if (!e.wasClean) {
+                    reconnectTimeout = setTimeout(connect, 2000);
+                }
+            };
+
+            ws.onerror = (e) => {
+                console.error('WebSocket error:', e);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    const msgType = data.type;
+                    const msg = data.msg || {};
+
+                    if (msgType === 'orderbook_snapshot') {
+                        // Initialize orderbook from snapshot
+                        orderbookState.yes = new Map((msg.yes || []).map(([p, q]) => [p, q]));
+                        orderbookState.no = new Map((msg.no || []).map(([p, q]) => [p, q]));
+                        updateOrderbookDisplay();
+                    }
+                    else if (msgType === 'orderbook_delta') {
+                        // Apply delta to orderbook
+                        const side = msg.side === 'yes' ? 'yes' : 'no';
+                        const price = msg.price;
+                        const delta = msg.delta;
+                        const currentQty = orderbookState[side].get(price) || 0;
+                        const newQty = currentQty + delta;
+
+                        if (newQty <= 0) {
+                            orderbookState[side].delete(price);
+                        } else {
+                            orderbookState[side].set(price, newQty);
+                        }
+                        updateOrderbookDisplay();
+                    }
+                    else if (msgType === 'ticker') {
+                        // Update live ticker data
+                        if (msg.price !== undefined) setLivePrice(msg.price);
+                        if (msg.volume !== undefined) setLiveVolume(msg.volume);
+                        if (msg.open_interest !== undefined) setLiveOI(msg.open_interest);
+                        if (msg.yes_bid !== undefined) setLiveYesBid(msg.yes_bid);
+                        if (msg.yes_ask !== undefined) setLiveYesAsk(msg.yes_ask);
+                    }
+                } catch (e) {
+                    console.error('Error parsing WebSocket message:', e);
+                }
+            };
+
+            function updateOrderbookDisplay() {
+                setOrderbook({
+                    yes: Array.from(orderbookState.yes.entries()),
+                    no: Array.from(orderbookState.no.entries())
+                });
+            }
+        };
+
+        connect();
+
+        return () => {
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            if (ws) {
+                ws.onclose = null; // Prevent reconnect on intentional close
+                ws.close();
+            }
+        };
+    }, [ticker]);
+
+    // Use live values if available, otherwise fall back to initial market data
+    const displayPrice = livePrice ?? market?.last_price;
+    const displayVolume = liveVolume ?? market?.volume_24h;
+    const displayOI = liveOI ?? market?.open_interest;
+    const displayYesAsk = liveYesAsk ?? market?.yes_ask;
+    const displayNoBid = liveYesBid ? (100 - liveYesBid) : market?.no_ask;
+
     if (loading) return (
         <div className="h-screen bg-[#0e0e10] flex items-center justify-center flex-col">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-kalshi-green mb-4"></div>
@@ -43,6 +157,7 @@ const MarketTerminal = ({ ticker, onBack }) => {
 
     return (
         <div className="flex-1 flex flex-col min-h-screen bg-[#0e0e10]">
+            {/* Header */}
             <div className="px-8 py-5 border-b border-zinc-800 bg-[#0e0e10] flex justify-between items-center sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <button
@@ -61,6 +176,13 @@ const MarketTerminal = ({ ticker, onBack }) => {
                                 }`}>
                                 {market.status}
                             </span>
+                            {/* Live indicator */}
+                            {wsConnected && (
+                                <span className="flex items-center gap-1 text-[10px] text-green-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                    LIVE
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-zinc-500 font-mono">
                             <span className="bg-zinc-900 border border-zinc-800 px-1.5 rounded">{market.ticker}</span>
@@ -70,21 +192,29 @@ const MarketTerminal = ({ ticker, onBack }) => {
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-3xl font-mono text-white tracking-tight">{formatPrice(market.last_price)}</div>
+                    <div className={`text-3xl font-mono tracking-tight transition-colors ${wsConnected ? 'text-white' : 'text-zinc-400'}`}>
+                        {formatPrice(displayPrice)}
+                    </div>
                     <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Last Price</div>
                 </div>
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row p-6 gap-6">
+                {/* Left Column - Stats, Chart, Rules */}
                 <div className="flex-1 flex flex-col min-w-0">
+                    {/* Stats Grid */}
                     <div className="grid grid-cols-4 gap-4 mb-6">
                         <div className="bg-[#131316] p-4 rounded-xl border border-zinc-800/60">
                             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Volume (24h)</div>
-                            <div className="text-xl font-mono text-white">{formatNumber(market.volume_24h)}</div>
+                            <div className={`text-xl font-mono ${wsConnected ? 'text-white' : 'text-zinc-400'}`}>
+                                {formatNumber(displayVolume)}
+                            </div>
                         </div>
                         <div className="bg-[#131316] p-4 rounded-xl border border-zinc-800/60">
                             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Open Interest</div>
-                            <div className="text-xl font-mono text-white">{formatNumber(market.open_interest)}</div>
+                            <div className={`text-xl font-mono ${wsConnected ? 'text-white' : 'text-zinc-400'}`}>
+                                {formatNumber(displayOI)}
+                            </div>
                         </div>
                         <div className="bg-[#131316] p-4 rounded-xl border border-zinc-800/60">
                             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Liquidity</div>
@@ -98,30 +228,35 @@ const MarketTerminal = ({ ticker, onBack }) => {
                         </div>
                     </div>
 
+                    {/* Price Chart */}
                     <div className="bg-[#111113] rounded-xl border border-zinc-800 flex flex-col mb-6 relative group overflow-hidden shadow-lg h-[500px]">
                         <SimpleChart ticker={market.ticker} />
                     </div>
 
+                    {/* Market Rules */}
                     <div className="bg-[#131316] p-4 rounded-xl border border-zinc-800/60 max-h-40 overflow-y-auto custom-scrollbar">
                         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 sticky top-0 bg-[#131316] pb-2">Market Rules</h3>
                         <div className="text-zinc-500 text-xs leading-relaxed font-sans" dangerouslySetInnerHTML={{ __html: market.rules_primary }}></div>
                     </div>
                 </div>
 
+                {/* Right Column - Orderbook and Trade Panel */}
                 <div className="w-[400px] flex flex-col gap-6">
+                    {/* Orderbook - now receives data from WebSocket */}
                     <div className="flex-1">
-                        <Orderbook ticker={market.ticker} />
+                        <Orderbook book={orderbook} connected={wsConnected} />
                     </div>
 
+                    {/* Trade Panel */}
                     <div className="bg-[#131316] p-6 rounded-xl border border-zinc-800 shadow-xl">
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <button className="flex flex-col items-center justify-center bg-green-900/10 border border-green-500/20 text-green-400 font-bold py-4 rounded-lg hover:bg-green-500 hover:text-black hover:scale-[1.02] transition-all group">
                                 <span className="text-[10px] uppercase opacity-60 mb-1 group-hover:text-black/70">Buy Yes</span>
-                                <span className="text-2xl tracking-tight">{formatPrice(market.yes_ask)}</span>
+                                <span className="text-2xl tracking-tight">{formatPrice(displayYesAsk)}</span>
                             </button>
                             <button className="flex flex-col items-center justify-center bg-red-900/10 border border-red-500/20 text-red-400 font-bold py-4 rounded-lg hover:bg-red-500 hover:text-black hover:scale-[1.02] transition-all group">
                                 <span className="text-[10px] uppercase opacity-60 mb-1 group-hover:text-black/70">Buy No</span>
-                                <span className="text-2xl tracking-tight">{formatPrice(market.no_ask)}</span>
+                                <span className="text-2xl tracking-tight">{formatPrice(displayNoBid)}</span>
                             </button>
                         </div>
                         <div className="flex justify-between items-center text-xs text-zinc-500 pt-2 border-t border-zinc-800">

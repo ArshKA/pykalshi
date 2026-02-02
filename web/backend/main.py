@@ -1,13 +1,18 @@
 import os
 import sys
 import time
+import json
+import asyncio
+import logging
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Ensure we can import kalshi_api from project root
 # This assumes the server is run from the project root
@@ -22,7 +27,9 @@ load_dotenv()
 
 app = FastAPI(title="Kalshi UI Backend")
 
-# Serve React App
+# Serve React App - static files
+app.mount("/components", StaticFiles(directory="web/frontend/components"), name="components")
+
 @app.get("/")
 async def read_index():
     return FileResponse('web/frontend/index.html')
@@ -30,6 +37,10 @@ async def read_index():
 @app.get("/app.jsx")
 async def read_app_jsx():
     return FileResponse('web/frontend/app.jsx')
+
+@app.get("/utils.js")
+async def read_utils_js():
+    return FileResponse('web/frontend/utils.js')
 
 # Configure CORS for local React dev server
 app.add_middleware(
@@ -247,3 +258,103 @@ def get_market_history(ticker: str, period: str = "hour", limit: int = 168):
     except Exception as e:
         print(f"Error fetching history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- WebSocket Streaming Endpoint ---
+
+# WebSocket URLs (must match feed.py)
+WS_PROD_URL = "wss://api.elections.kalshi.com/trade-api/ws/v2"
+WS_DEMO_URL = "wss://demo-api.kalshi.co/trade-api/ws/v2"
+WS_SIGN_PATH = "/trade-api/ws/v2"
+
+
+def get_ws_auth_headers() -> dict:
+    """Generate auth headers for Kalshi WebSocket connection."""
+    c = get_client()
+    timestamp, signature = c._sign_request("GET", WS_SIGN_PATH)
+    return {
+        "KALSHI-ACCESS-KEY": c.api_key_id,
+        "KALSHI-ACCESS-SIGNATURE": signature,
+        "KALSHI-ACCESS-TIMESTAMP": timestamp,
+    }
+
+
+def get_ws_url() -> str:
+    """Get the appropriate WebSocket URL based on client config."""
+    c = get_client()
+    return WS_DEMO_URL if "demo" in c.api_base else WS_PROD_URL
+
+
+@app.websocket("/ws/market/{ticker}")
+async def market_websocket(websocket: WebSocket, ticker: str):
+    """
+    WebSocket proxy for real-time market data.
+
+    Connects to Kalshi's WebSocket API and forwards orderbook_delta and ticker
+    messages for the specified market. The frontend maintains orderbook state
+    by applying deltas to the initial snapshot.
+
+    Message types forwarded:
+    - orderbook_snapshot: Initial full orderbook state
+    - orderbook_delta: Incremental orderbook updates
+    - ticker: Price/volume/OI updates
+    """
+    await websocket.accept()
+
+    try:
+        import websockets
+    except ImportError:
+        await websocket.send_json({"error": "websockets library not installed"})
+        await websocket.close()
+        return
+
+    kalshi_ws = None
+    try:
+        # Connect to Kalshi WebSocket
+        headers = get_ws_auth_headers()
+        ws_url = get_ws_url()
+
+        logger.info(f"Connecting to Kalshi WS for {ticker}")
+
+        async with websockets.connect(
+            ws_url,
+            additional_headers=headers,
+            ping_interval=20,
+            ping_timeout=10,
+        ) as kalshi_ws:
+            # Subscribe to orderbook and ticker channels
+            subscribe_msg = {
+                "id": 1,
+                "cmd": "subscribe",
+                "params": {
+                    "channels": ["orderbook_delta", "ticker"],
+                    "market_ticker": ticker
+                }
+            }
+            await kalshi_ws.send(json.dumps(subscribe_msg))
+            logger.info(f"Subscribed to {ticker}")
+
+            # Forward messages from Kalshi to browser
+            async for message in kalshi_ws:
+                try:
+                    data = json.loads(message)
+                    msg_type = data.get("type")
+
+                    # Only forward relevant message types
+                    if msg_type in ("orderbook_snapshot", "orderbook_delta", "ticker", "subscribed", "error"):
+                        await websocket.send_text(message)
+                except json.JSONDecodeError:
+                    pass
+                except WebSocketDisconnect:
+                    break
+
+    except WebSocketDisconnect:
+        logger.info(f"Browser disconnected from {ticker}")
+    except Exception as e:
+        logger.error(f"WebSocket error for {ticker}: {e}")
+        try:
+            await websocket.send_json({"error": str(e)})
+        except:
+            pass
+    finally:
+        logger.info(f"Closing WebSocket for {ticker}")
