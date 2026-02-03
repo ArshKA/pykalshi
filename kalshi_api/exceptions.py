@@ -4,6 +4,8 @@ from typing import Any
 class KalshiError(Exception):
     """Base exception for all Kalshi API errors."""
 
+    retryable: bool = False
+
 
 class KalshiAPIError(KalshiError):
     """Raised when the API returns a non-200 response.
@@ -16,7 +18,10 @@ class KalshiAPIError(KalshiError):
         endpoint: API endpoint path.
         request_body: Request payload (for POST/PUT), if available.
         response_body: Raw response body for debugging.
+        retryable: Whether this error is safe to retry (e.g., 5xx, rate limits).
     """
+
+    retryable = True  # 5xx errors are generally retryable
 
     def __init__(
         self,
@@ -65,12 +70,16 @@ class AuthenticationError(KalshiAPIError):
     - Clock skew (timestamp too old)
     """
 
+    retryable = False
+
 
 class InsufficientFundsError(KalshiAPIError):
     """Raised when the order cannot be placed due to insufficient funds.
 
     Check `request_body` for the order that was rejected.
     """
+
+    retryable = False
 
 
 class ResourceNotFoundError(KalshiAPIError):
@@ -79,12 +88,16 @@ class ResourceNotFoundError(KalshiAPIError):
     Check `endpoint` to see which resource was not found.
     """
 
+    retryable = False
+
 
 class RateLimitError(KalshiAPIError):
     """Raised when rate limit retries are exhausted (429).
 
     Consider using a RateLimiter to proactively throttle requests.
     """
+
+    retryable = True
 
 
 class OrderRejectedError(KalshiAPIError):
@@ -98,3 +111,5 @@ class OrderRejectedError(KalshiAPIError):
 
     Check `request_body` for the rejected order details.
     """
+
+    retryable = False

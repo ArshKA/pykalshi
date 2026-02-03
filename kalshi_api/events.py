@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from .models import EventModel
+from .models import EventModel, ForecastPercentileHistory
 
 if TYPE_CHECKING:
     from .client import KalshiClient
@@ -52,6 +52,25 @@ class Event:
     def get_series(self) -> Series:
         """Get the parent Series for this event."""
         return self._client.get_series(self.series_ticker)
+
+    def get_forecast_percentile_history(
+        self,
+        percentiles: list[int] | None = None,
+    ) -> ForecastPercentileHistory:
+        """Get historical forecast data at various percentiles.
+
+        Args:
+            percentiles: List of percentiles to fetch (e.g., [10, 25, 50, 75, 90]).
+                        If None, returns all available percentiles.
+
+        Returns:
+            ForecastPercentileHistory with percentile -> history mapping.
+        """
+        endpoint = f"/events/{self.event_ticker}/forecast/percentile_history"
+        if percentiles:
+            endpoint += f"?percentiles={','.join(str(p) for p in percentiles)}"
+        response = self._client.get(endpoint)
+        return ForecastPercentileHistory.model_validate(response)
 
     def __getattr__(self, name: str):
         return getattr(self.data, name)

@@ -22,6 +22,8 @@ from .feed import (
     TradeMessage,
     FillMessage,
     PositionMessage,
+    MarketLifecycleMessage,
+    OrderGroupUpdateMessage,
 )
 from .enums import (
     Side,
@@ -55,6 +57,7 @@ from .models import (
     SubaccountModel,
     SubaccountBalanceModel,
     SubaccountTransferModel,
+    ForecastPercentileHistory,
 )
 from .orderbook import OrderbookManager
 from .rate_limiter import RateLimiter, NoOpRateLimiter
@@ -91,6 +94,8 @@ __all__ = [
     "TradeMessage",
     "FillMessage",
     "PositionMessage",
+    "MarketLifecycleMessage",
+    "OrderGroupUpdateMessage",
     # Enums
     "Side",
     "Action",
@@ -119,6 +124,7 @@ __all__ = [
     "SettlementModel",
     "QueuePositionModel",
     "OrderGroupModel",
+    "ForecastPercentileHistory",
     # Utilities
     "OrderbookManager",
     "RateLimiter",

@@ -534,3 +534,19 @@ class SubaccountTransferModel(BaseModel):
     created_time: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
+
+
+class ForecastPoint(BaseModel):
+    """A single point in forecast percentile history."""
+    ts: int  # Unix timestamp
+    value: int  # Forecast value in cents
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class ForecastPercentileHistory(BaseModel):
+    """Historical forecast data at various percentiles for an event."""
+    event_ticker: str
+    percentiles: dict[str, list[ForecastPoint]]  # Maps percentile (e.g., "50") to history
+
+    model_config = ConfigDict(extra="ignore")
