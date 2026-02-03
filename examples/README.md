@@ -24,6 +24,7 @@ Runnable examples demonstrating the `kalshi-api` library.
 | `basic_usage.py` | Browse markets, check balance, view positions |
 | `stream_orderbook.py` | Real-time WebSocket streaming |
 | `place_order.py` | Place, modify, and cancel orders |
+| `momentum_bot.py` | Simple momentum trading bot |
 
 ## Running
 
