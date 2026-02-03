@@ -1,5 +1,9 @@
 # pykalshi
 
+[![PyPI version](https://img.shields.io/pypi/v/pykalshi.svg)](https://pypi.org/project/pykalshi/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pykalshi.svg)](https://pypi.org/project/pykalshi/)
+[![License](https://img.shields.io/pypi/l/pykalshi.svg)](https://github.com/ArshKA/pykalshi/blob/main/LICENSE)
+
 A typed Python client for the [Kalshi](https://kalshi.com) prediction markets API with WebSocket streaming, automatic retries, and ergonomic interfaces.
 
 ## Installation
