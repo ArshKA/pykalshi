@@ -135,14 +135,16 @@ def _extract_data(obj: Any) -> dict:
         - Domain objects with .data attribute (Market, Order, Event, Series)
         - Pydantic models with .model_dump()
         - Plain dicts
+
+    Uses mode='json' to serialize enums as their string values.
     """
     # Domain objects wrap a Pydantic model in .data
     if hasattr(obj, 'data') and hasattr(obj.data, 'model_dump'):
-        return obj.data.model_dump()
+        return obj.data.model_dump(mode='json')
 
     # Pydantic models
     if hasattr(obj, 'model_dump'):
-        return obj.model_dump()
+        return obj.model_dump(mode='json')
 
     # Already a dict
     if isinstance(obj, dict):
