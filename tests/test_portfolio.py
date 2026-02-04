@@ -362,3 +362,83 @@ def test_order_refresh(client, mock_response):
         headers=ANY,
         timeout=ANY,
     )
+
+
+def test_order_wait_until_terminal_filled(client, mock_response, mocker):
+    """Test wait_until_terminal returns when order becomes FILLED."""
+    from pykalshi.orders import Order
+    from pykalshi.models import OrderModel
+
+    initial_model = OrderModel(
+        order_id="order-abc-123",
+        ticker="KXTEST",
+        status=OrderStatus.RESTING,
+    )
+    order = Order(client, initial_model)
+
+    # Mock time to avoid actual sleeping
+    mocker.patch("pykalshi.orders.time.sleep")
+    mock_monotonic = mocker.patch("pykalshi.orders.time.monotonic")
+    mock_monotonic.side_effect = [0.0, 0.5, 1.0]  # start, check, check
+
+    # First refresh: still resting, second refresh: filled
+    client._session.request.side_effect = [
+        mock_response({"order": {"order_id": "order-abc-123", "ticker": "KXTEST", "status": "resting"}}),
+        mock_response({"order": {"order_id": "order-abc-123", "ticker": "KXTEST", "status": "filled"}}),
+    ]
+
+    result = order.wait_until_terminal(timeout=5.0)
+
+    assert result is order
+    assert order.status == OrderStatus.FILLED
+    assert client._session.request.call_count == 2
+
+
+def test_order_wait_until_terminal_already_terminal(client, mock_response, mocker):
+    """Test wait_until_terminal returns immediately if already terminal."""
+    from pykalshi.orders import Order
+    from pykalshi.models import OrderModel
+
+    initial_model = OrderModel(
+        order_id="order-abc-123",
+        ticker="KXTEST",
+        status=OrderStatus.CANCELED,
+    )
+    order = Order(client, initial_model)
+
+    mock_sleep = mocker.patch("pykalshi.orders.time.sleep")
+
+    result = order.wait_until_terminal(timeout=5.0)
+
+    assert result is order
+    assert order.status == OrderStatus.CANCELED
+    mock_sleep.assert_not_called()
+    client._session.request.assert_not_called()
+
+
+def test_order_wait_until_terminal_timeout(client, mock_response, mocker):
+    """Test wait_until_terminal raises TimeoutError when deadline exceeded."""
+    from pykalshi.orders import Order
+    from pykalshi.models import OrderModel
+
+    initial_model = OrderModel(
+        order_id="order-abc-123",
+        ticker="KXTEST",
+        status=OrderStatus.RESTING,
+    )
+    order = Order(client, initial_model)
+
+    mocker.patch("pykalshi.orders.time.sleep")
+    mock_monotonic = mocker.patch("pykalshi.orders.time.monotonic")
+    # Simulate time passing: start at 0, then jump past deadline
+    mock_monotonic.side_effect = [0.0, 0.5, 2.1]  # start, first check (ok), second check (past deadline)
+
+    client._session.request.return_value = mock_response(
+        {"order": {"order_id": "order-abc-123", "ticker": "KXTEST", "status": "resting"}}
+    )
+
+    with pytest.raises(TimeoutError) as exc_info:
+        order.wait_until_terminal(timeout=2.0)
+
+    assert "order-abc-123" in str(exc_info.value)
+    assert "resting" in str(exc_info.value)

@@ -1,10 +1,13 @@
 from __future__ import annotations
+import time
 from typing import TYPE_CHECKING
 from .models import OrderModel
 from .enums import OrderStatus, Action, Side, OrderType
 
 if TYPE_CHECKING:
     from .client import KalshiClient
+
+TERMINAL_STATUSES = frozenset({OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXECUTED})
 
 
 class Order:
@@ -127,6 +130,33 @@ class Order:
         """
         updated = self._client.portfolio.get_order(self.order_id)
         self.data = updated.data
+        return self
+
+    def wait_until_terminal(
+        self, timeout: float = 30.0, poll_interval: float = 0.5
+    ) -> Order:
+        """Block until order reaches a terminal state.
+
+        Terminal states are: FILLED, CANCELED, EXECUTED.
+
+        Args:
+            timeout: Maximum seconds to wait before raising TimeoutError.
+            poll_interval: Seconds between refresh calls.
+
+        Returns:
+            Self with updated data.
+
+        Raises:
+            TimeoutError: If timeout is reached before terminal state.
+        """
+        deadline = time.monotonic() + timeout
+        while self.status not in TERMINAL_STATUSES:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Order {self.order_id} still {self.status.value} after {timeout}s"
+                )
+            time.sleep(poll_interval)
+            self.refresh()
         return self
 
     def __getattr__(self, name: str):
