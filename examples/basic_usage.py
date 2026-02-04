@@ -8,7 +8,7 @@ Setup:
     2. Run: python examples/basic_usage.py
 """
 
-from pykalshi import KalshiClient
+from pykalshi import KalshiClient, MarketStatus
 
 # Initialize client (loads credentials from .env)
 client = KalshiClient()
@@ -18,21 +18,21 @@ client = KalshiClient()
 
 # --- Portfolio ---
 
-user = client.get_user()
+portfolio = client.portfolio
 
 # Check balance (values in cents)
-balance = user.get_balance()
+balance = portfolio.get_balance()
 print(f"Balance: ${balance.balance / 100:.2f}")
 print(f"Portfolio value: ${balance.portfolio_value / 100:.2f}")
 
 # View positions
-positions = user.get_positions()
+positions = portfolio.get_positions()
 print(f"\nYou have {len(positions)} open positions")
 for pos in positions[:5]:  # Show first 5
     print(f"  {pos.ticker}: {pos.position} contracts @ ${pos.market_exposure / 100:.2f} exposure")
 
 # View recent fills
-fills = user.get_fills(limit=5)
+fills = portfolio.get_fills(limit=5)
 print(f"\nRecent fills:")
 for fill in fills:
     print(f"  {fill.ticker}: {fill.action} {fill.count}x @ {fill.yes_price}¢")
@@ -40,7 +40,7 @@ for fill in fills:
 # --- Markets ---
 
 # Browse open markets
-markets = client.get_markets(status="open", limit=10)
+markets = client.get_markets(status=MarketStatus.OPEN, limit=10)
 print(f"\n{len(markets)} open markets:")
 for market in markets[:5]:
     print(f"  {market.ticker}: {market.title}")
@@ -63,7 +63,7 @@ if markets:
 # --- Events and Series ---
 
 # Get events (groups of related markets)
-events = client.get_events(status="open", limit=5)
+events = client.get_events(status=MarketStatus.OPEN, limit=5)
 print(f"\n{len(events)} open events:")
 for event in events:
     print(f"  {event.event_ticker}: {event.title}")

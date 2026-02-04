@@ -4,15 +4,38 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/pykalshi.svg)](https://pypi.org/project/pykalshi/)
 [![License](https://img.shields.io/pypi/l/pykalshi.svg)](https://github.com/ArshKA/pykalshi/blob/main/LICENSE)
 
-A typed Python client for the [Kalshi](https://kalshi.com) prediction markets API with WebSocket streaming, automatic retries, and ergonomic interfaces.
+The Python client for [Kalshi](https://kalshi.com) prediction markets. WebSocket streaming, automatic retries, pandas integration, and clean interfaces for building trading systems.
+
+```python
+from pykalshi import KalshiClient, Action, Side
+
+client = KalshiClient()
+
+# Place a trade
+order = client.portfolio.place_order("KXBTC-25MAR15-B100000", Action.BUY, Side.YES, count=10, yes_price=45)
+order.wait_until_terminal()  # Block until filled/canceled
+```
+
+## Features
+
+- **WebSocket streaming** - Real-time orderbook, ticker, and trade data with typed messages
+- **Automatic retries** - Exponential backoff on rate limits and transient errors
+- **Domain objects** - `Market`, `Order`, `Event` with methods like `order.cancel()`, `market.get_orderbook()`
+- **pandas integration** - `.to_dataframe()` on any list of results
+- **Jupyter support** - Rich HTML display for markets, orders, and positions
+- **Local orderbook** - `OrderbookManager` maintains state from WebSocket deltas
+- **Type safety** - Pydantic models and typed exceptions throughout
 
 ## Installation
 
 ```bash
 pip install pykalshi
+
+# With pandas support
+pip install pykalshi[dataframe]
 ```
 
-Create a `.env` file with your credentials from [kalshi.com](https://kalshi.com) → Account & Security → API Keys:
+Get your API credentials from [kalshi.com](https://kalshi.com/account/api) and create a `.env` file:
 
 ```
 KALSHI_API_KEY_ID=your-key-id
@@ -21,88 +44,98 @@ KALSHI_PRIVATE_KEY_PATH=/path/to/private-key.key
 
 ## Quick Start
 
+### Browse Markets
+
 ```python
-from pykalshi import KalshiClient, Action, Side
+from pykalshi import MarketStatus, CandlestickPeriod
 
 client = KalshiClient()
-user = client.get_user()
 
-# Browse markets
-markets = client.get_markets(status="open", limit=5)
-market = client.get_market("KXBTC-25JAN15-B100000")
-
-# Place an order
-order = user.place_order(
-    market,
-    action=Action.BUY,
-    side=Side.YES,
-    count=10,
-    price=45  # cents
-)
-
-order.cancel()  # if needed
-```
-
-## Usage
-
-### Portfolio
-
-`KalshiClient` handles authentication. Call `get_user()` to access your portfolio:
-
-```python
-client = KalshiClient()              # Uses .env credentials
-client = KalshiClient(demo=True)     # Use demo environment
-
-user = client.get_user()
-user.get_balance()                   # BalanceModel with balance, portfolio_value
-user.get_positions()                 # Your current positions
-user.get_fills()                     # Your trade history
-user.get_orders(status="resting")    # Your open orders
-```
-
-### Markets
-
-```python
 # Search markets
-markets = client.get_markets(series_ticker="KXBTC", status="open")
+markets = client.get_markets(status=MarketStatus.OPEN, limit=100)
+btc_markets = client.get_markets(series_ticker="KXBTC")
 
 # Get a specific market
-market = client.get_market("KXBTC-25JAN15-B100000")
-print(market.title, market.yes_bid, market.yes_ask)
+market = client.get_market("KXBTC-25MAR15-B100000")
+print(f"{market.title}: {market.yes_bid}¢ / {market.yes_ask}¢")
 
 # Market data
 orderbook = market.get_orderbook()
-trades = market.get_trades()
+trades = market.get_trades(limit=50)
+candles = market.get_candlesticks(start_ts, end_ts, period=CandlestickPeriod.ONE_HOUR)
 ```
 
-### Orders
+### Trading
 
 ```python
-from pykalshi import Action, Side, OrderType
+from pykalshi import Action, Side, OrderType, OrderStatus
 
-# Limit order (default)
-order = user.place_order(market, Action.BUY, Side.YES, count=10, price=50)
+# Check balance
+balance = client.portfolio.get_balance()
+print(f"${balance.balance / 100:.2f} available")
+
+# Limit order
+order = client.portfolio.place_order(market, Action.BUY, Side.YES, count=10, yes_price=50)
 
 # Market order
-order = user.place_order(market, Action.BUY, Side.YES, count=10, order_type=OrderType.MARKET)
+order = client.portfolio.place_order(market, Action.BUY, Side.YES, count=10, order_type=OrderType.MARKET)
 
-order.cancel()
+# Manage orders
+order.wait_until_terminal()  # Block until filled/canceled
+order.modify(yes_price=45)   # Amend price
+order.cancel()               # Cancel
+
+# View portfolio
+positions = client.portfolio.get_positions()
+fills = client.portfolio.get_fills(limit=100)
+orders = client.portfolio.get_orders(status=OrderStatus.RESTING)
 ```
 
 ### Real-time Streaming
 
-Subscribe to live market data via WebSocket:
+```python
+from pykalshi import Feed, TickerMessage, OrderbookSnapshotMessage
+
+async with Feed(client) as feed:
+    await feed.subscribe_ticker("KXBTC-25MAR15-B100000")
+    await feed.subscribe_orderbook("KXBTC-25MAR15-B100000")
+    await feed.subscribe_trades("KXBTC-25MAR15-B100000")
+
+    async for msg in feed:
+        match msg:
+            case TickerMessage():
+                print(f"Price: {msg.price}¢")
+            case OrderbookSnapshotMessage():
+                print(f"Book: {len(msg.yes)} yes levels, {len(msg.no)} no levels")
+```
+
+### Local Orderbook
 
 ```python
-from pykalshi import Feed
+from pykalshi import Feed, OrderbookManager
 
-async def main():
-    async with Feed(client) as feed:
-        await feed.subscribe_ticker("KXBTC-25JAN15-B100000")
-        await feed.subscribe_orderbook("KXBTC-25JAN15-B100000")
+manager = OrderbookManager()
 
-        async for msg in feed:
-            print(msg)  # TickerMessage, OrderbookSnapshotMessage, etc.
+async with Feed(client) as feed:
+    await feed.subscribe_orderbook(ticker)
+
+    async for msg in feed:
+        manager.apply(msg)
+        book = manager.get(ticker)
+        best_bid = book["yes"][0] if book["yes"] else None
+```
+
+### pandas Integration
+
+```python
+# Any list result has .to_dataframe()
+positions_df = client.portfolio.get_positions().to_dataframe()
+markets_df = client.get_markets(limit=500).to_dataframe()
+fills_df = client.portfolio.get_fills().to_dataframe()
+
+# Candlesticks and orderbooks too
+candles_df = market.get_candlesticks(start, end).to_dataframe()
+orderbook_df = market.get_orderbook().to_dataframe()
 ```
 
 ### Error Handling
@@ -111,7 +144,7 @@ async def main():
 from pykalshi import InsufficientFundsError, RateLimitError, KalshiAPIError
 
 try:
-    user.place_order(...)
+    order = client.portfolio.place_order(...)
 except InsufficientFundsError:
     print("Not enough balance")
 except RateLimitError:
@@ -120,21 +153,32 @@ except KalshiAPIError as e:
     print(f"{e.status_code}: {e.error_code}")
 ```
 
-## Comparison with Official SDK
+## Examples
 
-| Feature | pykalshi | kalshi-python (official) |
-|---------|------------|--------------------------|
+See the [`examples/`](examples/) directory:
+
+- **[demo.ipynb](examples/demo.ipynb)** - Interactive notebook with rich display examples
+- **[basic_usage.py](examples/basic_usage.py)** - Browse markets and check portfolio
+- **[place_order.py](examples/place_order.py)** - Place and manage orders
+- **[stream_orderbook.py](examples/stream_orderbook.py)** - WebSocket streaming patterns
+- **[momentum_bot.py](examples/momentum_bot.py)** - Simple trading bot example
+
+## Why pykalshi?
+
+| | pykalshi | kalshi-python (official) |
+|---|:---:|:---:|
 | WebSocket streaming | ✓ | — |
-| Automatic retry with backoff | ✓ | — |
+| Automatic retry/backoff | ✓ | — |
 | Rate limit handling | ✓ | — |
-| Domain objects (`Market`, `Order`) | ✓ | — |
+| Domain objects | ✓ | — |
+| pandas integration | ✓ | — |
+| Jupyter display | ✓ | — |
+| Local orderbook | ✓ | — |
 | Typed exceptions | ✓ | — |
-| Local orderbook management | ✓ | — |
 | Pydantic models | ✓ | — |
-| Core trading API coverage | ✓ | ✓ |
 | Full API coverage | — | ✓ |
 
-The official SDK is auto-generated from the OpenAPI spec. This library adds the infrastructure needed for production trading: real-time data, error recovery, and ergonomic interfaces.
+The official SDK is auto-generated from the OpenAPI spec. pykalshi adds the infrastructure needed for production trading: real-time data, error recovery, and ergonomic interfaces.
 
 ## Links
 

@@ -28,6 +28,7 @@ from pykalshi import (
     Action,
     Side,
     OrderType,
+    MarketStatus,
     InsufficientFundsError,
 )
 
@@ -51,7 +52,7 @@ class MomentumBot:
     def __init__(self, config: BotConfig):
         self.config = config
         self.client = KalshiClient(demo=config.demo)
-        self.user = self.client.get_user()
+        self.portfolio = self.client.portfolio
 
         # Price tracking
         self.prices: deque[int] = deque(maxlen=config.lookback)
@@ -137,7 +138,7 @@ class MomentumBot:
             return
 
         try:
-            order = self.user.place_order(
+            order = self.portfolio.place_order(
                 self.config.ticker,
                 action=Action.BUY,
                 side=side,
@@ -170,7 +171,7 @@ class MomentumBot:
                 side = Side.NO
                 count = abs(self.position)
 
-            order = self.user.place_order(
+            order = self.portfolio.place_order(
                 self.config.ticker,
                 action=Action.SELL,
                 side=side,
@@ -203,7 +204,7 @@ class MomentumBot:
         self.log("-" * 50)
 
         # Check initial balance
-        balance = self.user.get_balance()
+        balance = self.portfolio.get_balance()
         self.log(f"Balance: ${balance.balance / 100:.2f}")
 
         async with Feed(self.client) as feed:
@@ -224,7 +225,7 @@ class MomentumBot:
 async def main():
     # Find an active market to trade
     client = KalshiClient(demo=True)
-    markets = client.get_markets(status="open", limit=10)
+    markets = client.get_markets(status=MarketStatus.OPEN, limit=10)
 
     if not markets:
         print("No open markets found")

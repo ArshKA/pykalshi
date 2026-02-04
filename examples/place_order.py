@@ -13,22 +13,24 @@ from pykalshi import (
     Action,
     Side,
     OrderType,
+    OrderStatus,
+    MarketStatus,
     InsufficientFundsError,
     OrderRejectedError,
 )
 
 # Use demo environment for testing
 client = KalshiClient(demo=True)
-user = client.get_user()
+portfolio = client.portfolio
 
 # Check balance first
-balance = user.get_balance()
+balance = portfolio.get_balance()
 print(f"Available balance: ${balance.balance / 100:.2f}")
 
 # --- Place a Limit Order ---
 
 # Find a market to trade
-markets = client.get_markets(status="open", limit=1)
+markets = client.get_markets(status=MarketStatus.OPEN, limit=1)
 if not markets:
     print("No open markets found")
     exit()
@@ -40,7 +42,7 @@ print(f"  Current: {market.yes_bid}¢ bid / {market.yes_ask}¢ ask")
 
 # Place a limit order (uncomment to execute)
 # try:
-#     order = user.place_order(
+#     order = portfolio.place_order(
 #         market,
 #         action=Action.BUY,
 #         side=Side.YES,
@@ -60,7 +62,7 @@ print(f"  Current: {market.yes_bid}¢ bid / {market.yes_ask}¢ ask")
 
 # Market orders execute immediately at best available price
 # try:
-#     order = user.place_order(
+#     order = portfolio.place_order(
 #         market,
 #         action=Action.BUY,
 #         side=Side.YES,
@@ -75,7 +77,7 @@ print(f"  Current: {market.yes_bid}¢ bid / {market.yes_ask}¢ ask")
 # --- View and Manage Orders ---
 
 # Get your open orders
-orders = user.get_orders(status="resting")
+orders = portfolio.get_orders(status=OrderStatus.RESTING)
 print(f"\nYou have {len(orders)} open orders")
 
 for order in orders[:3]:
@@ -98,10 +100,10 @@ for order in orders[:3]:
 # --- Sell / Close Position ---
 
 # To close a YES position, sell YES contracts
-# positions = user.get_positions()
+# positions = portfolio.get_positions()
 # for pos in positions:
 #     if pos.position > 0:  # Long YES position
-#         order = user.place_order(
+#         order = portfolio.place_order(
 #             pos.ticker,
 #             action=Action.SELL,
 #             side=Side.YES,
@@ -116,7 +118,7 @@ for order in orders[:3]:
 # Post-only orders are rejected if they would take liquidity.
 # Essential for market making strategies to ensure you always earn the spread.
 
-# order = user.place_order(
+# order = portfolio.place_order(
 #     market,
 #     action=Action.BUY,
 #     side=Side.YES,

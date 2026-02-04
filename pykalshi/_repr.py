@@ -71,7 +71,15 @@ def _event_link(event_ticker: str, label: str | None = None) -> str:
     """Render event ticker as a clickable link to Kalshi."""
     display = escape(label or event_ticker)
     safe_ticker = escape(event_ticker)
-    url = f"{KALSHI_BASE_URL}/events/{safe_ticker}"
+    url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
+    return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
+
+
+def _series_link(series_ticker: str, label: str | None = None) -> str:
+    """Render series ticker as a clickable link to Kalshi."""
+    display = escape(label or series_ticker)
+    safe_ticker = escape(series_ticker)
+    url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
     return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
 
 
@@ -231,7 +239,7 @@ def series_html(s: Series) -> str:
     category = f'<span class="pill pill-gray">{escape(s.category)}</span>' if s.category else "—"
 
     rows = [
-        _row("Ticker", f'<span class="m">{escape(s.ticker)}</span>'),
+        _row("Ticker", _series_link(s.ticker)),
         _row("Title", escape(s.title) if s.title else "—"),
         _row("Category", category),
     ]
@@ -285,7 +293,7 @@ def event_html(e: Event) -> str:
 
     rows = [
         _row("Event", _event_link(e.event_ticker)),
-        _row("Series", f'<span class="m">{escape(e.series_ticker)}</span>'),
+        _row("Series", _series_link(e.series_ticker)),
         _row("Title", escape(e.title) if e.title else "—"),
         _row("Category", category),
         _row("Exclusive", exclusive),
