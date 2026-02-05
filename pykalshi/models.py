@@ -1,7 +1,6 @@
 from __future__ import annotations
 from functools import cached_property
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from .enums import OrderStatus, Side, Action, OrderType, MarketStatus
 
 
@@ -9,51 +8,51 @@ class MarketModel(BaseModel):
     """Pydantic model for Market data."""
 
     ticker: str
-    event_ticker: Optional[str] = None
-    series_ticker: Optional[str] = None
-    market_type: Optional[str] = None
-    title: Optional[str] = None
-    subtitle: Optional[str] = None
-    yes_sub_title: Optional[str] = None
-    no_sub_title: Optional[str] = None
+    event_ticker: str | None = None
+    series_ticker: str | None = None
+    market_type: str | None = None
+    title: str | None = None
+    subtitle: str | None = None
+    yes_sub_title: str | None = None
+    no_sub_title: str | None = None
 
     # Timing
-    open_time: Optional[str] = None
-    close_time: Optional[str] = None
-    expiration_time: Optional[str] = None
-    expected_expiration_time: Optional[str] = None
-    latest_expiration_time: Optional[str] = None
-    created_time: Optional[str] = None
-    updated_time: Optional[str] = None
+    open_time: str | None = None
+    close_time: str | None = None
+    expiration_time: str | None = None
+    expected_expiration_time: str | None = None
+    latest_expiration_time: str | None = None
+    created_time: str | None = None
+    updated_time: str | None = None
 
     # Status & Result
-    status: Optional[MarketStatus] = None
-    result: Optional[str] = None
-    settlement_value: Optional[int] = None
+    status: MarketStatus | None = None
+    result: str | None = None
+    settlement_value: int | None = None
 
     # Pricing
-    yes_bid: Optional[int] = None
-    yes_ask: Optional[int] = None
-    no_bid: Optional[int] = None
-    no_ask: Optional[int] = None
-    last_price: Optional[int] = None
-    previous_yes_bid: Optional[int] = None
-    previous_yes_ask: Optional[int] = None
-    previous_price: Optional[int] = None
-    notional_value: Optional[int] = None
+    yes_bid: int | None = None
+    yes_ask: int | None = None
+    no_bid: int | None = None
+    no_ask: int | None = None
+    last_price: int | None = None
+    previous_yes_bid: int | None = None
+    previous_yes_ask: int | None = None
+    previous_price: int | None = None
+    notional_value: int | None = None
 
     # Volume & Liquidity
-    volume: Optional[int] = None
-    volume_24h: Optional[int] = None
-    open_interest: Optional[int] = None
-    liquidity: Optional[int] = None
+    volume: int | None = None
+    volume_24h: int | None = None
+    open_interest: int | None = None
+    liquidity: int | None = None
 
     # Market structure
-    tick_size: Optional[int] = None
-    strike_type: Optional[str] = None
-    can_close_early: Optional[bool] = None
-    rules_primary: Optional[str] = None
-    rules_secondary: Optional[str] = None
+    tick_size: int | None = None
+    strike_type: str | None = None
+    can_close_early: bool | None = None
+    rules_primary: str | None = None
+    rules_secondary: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -63,17 +62,17 @@ class EventModel(BaseModel):
 
     event_ticker: str
     series_ticker: str
-    title: Optional[str] = None
-    sub_title: Optional[str] = None
-    category: Optional[str] = None
+    title: str | None = None
+    sub_title: str | None = None
+    category: str | None = None
 
     # Event properties
     mutually_exclusive: bool = False
-    collateral_return_type: Optional[str] = None
+    collateral_return_type: str | None = None
 
     # Timing
-    strike_date: Optional[str] = None
-    strike_period: Optional[str] = None
+    strike_date: str | None = None
+    strike_period: str | None = None
 
     # Availability
     available_on_brokers: bool = False
@@ -87,31 +86,31 @@ class OrderModel(BaseModel):
     order_id: str
     ticker: str
     status: OrderStatus
-    action: Optional[Action] = None
-    side: Optional[Side] = None
-    type: Optional[OrderType] = None
+    action: Action | None = None
+    side: Side | None = None
+    type: OrderType | None = None
 
     # Pricing
-    yes_price: Optional[int] = None
-    no_price: Optional[int] = None
+    yes_price: int | None = None
+    no_price: int | None = None
 
     # Counts
-    initial_count: Optional[int] = None
-    fill_count: Optional[int] = None
-    remaining_count: Optional[int] = None
+    initial_count: int | None = None
+    fill_count: int | None = None
+    remaining_count: int | None = None
 
     # Fees & costs (in cents)
-    taker_fees: Optional[int] = None
-    maker_fees: Optional[int] = None
-    taker_fill_cost: Optional[int] = None
-    maker_fill_cost: Optional[int] = None
+    taker_fees: int | None = None
+    maker_fees: int | None = None
+    taker_fill_cost: int | None = None
+    maker_fill_cost: int | None = None
 
     # Metadata
-    user_id: Optional[str] = None
-    client_order_id: Optional[str] = None
-    created_time: Optional[str] = None
-    last_update_time: Optional[str] = None
-    expiration_time: Optional[str] = None
+    user_id: str | None = None
+    client_order_id: str | None = None
+    created_time: str | None = None
+    last_update_time: str | None = None
+    expiration_time: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -121,7 +120,7 @@ class BalanceModel(BaseModel):
 
     balance: int
     portfolio_value: int
-    updated_ts: Optional[int] = None
+    updated_ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -135,12 +134,12 @@ class PositionModel(BaseModel):
 
     ticker: str
     position: int  # Net position (positive = yes, negative = no)
-    market_exposure: Optional[int] = None
-    total_traded: Optional[int] = None
-    resting_orders_count: Optional[int] = None
-    fees_paid: Optional[int] = None
-    realized_pnl: Optional[int] = None
-    last_updated_ts: Optional[str] = None
+    market_exposure: int | None = None
+    total_traded: int | None = None
+    resting_orders_count: int | None = None
+    fees_paid: int | None = None
+    realized_pnl: int | None = None
+    last_updated_ts: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -160,12 +159,12 @@ class FillModel(BaseModel):
     count: int
     yes_price: int
     no_price: int
-    is_taker: Optional[bool] = None
-    fill_id: Optional[str] = None
-    market_ticker: Optional[str] = None
-    fee_cost: Optional[str] = None  # Dollar amount string (e.g., "0.3200")
-    created_time: Optional[str] = None
-    ts: Optional[int] = None
+    is_taker: bool | None = None
+    fill_id: str | None = None
+    market_ticker: str | None = None
+    fee_cost: str | None = None  # Dollar amount string (e.g., "0.3200")
+    created_time: str | None = None
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -177,14 +176,14 @@ class FillModel(BaseModel):
 class OHLCData(BaseModel):
     """OHLC price data."""
 
-    open: Optional[int] = None
-    high: Optional[int] = None
-    low: Optional[int] = None
-    close: Optional[int] = None
-    open_dollars: Optional[str] = None
-    high_dollars: Optional[str] = None
-    low_dollars: Optional[str] = None
-    close_dollars: Optional[str] = None
+    open: int | None = None
+    high: int | None = None
+    low: int | None = None
+    close: int | None = None
+    open_dollars: str | None = None
+    high_dollars: str | None = None
+    low_dollars: str | None = None
+    close_dollars: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -192,14 +191,14 @@ class OHLCData(BaseModel):
 class PriceData(BaseModel):
     """Price data with additional fields."""
 
-    open: Optional[int] = None
-    high: Optional[int] = None
-    low: Optional[int] = None
-    close: Optional[int] = None
-    max: Optional[int] = None
-    min: Optional[int] = None
-    mean: Optional[int] = None
-    previous: Optional[int] = None
+    open: int | None = None
+    high: int | None = None
+    low: int | None = None
+    close: int | None = None
+    max: int | None = None
+    min: int | None = None
+    mean: int | None = None
+    previous: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -211,8 +210,8 @@ class Candlestick(BaseModel):
     volume: int
     open_interest: int
     price: PriceData
-    yes_bid: Optional[OHLCData] = None
-    yes_ask: Optional[OHLCData] = None
+    yes_bid: OHLCData | None = None
+    yes_ask: OHLCData | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -251,10 +250,10 @@ class OrderbookLevel(BaseModel):
 class Orderbook(BaseModel):
     """Orderbook with yes/no price levels."""
 
-    yes: Optional[list[tuple[int, int]]] = None  # [(price, quantity), ...]
-    no: Optional[list[tuple[int, int]]] = None
-    yes_dollars: Optional[list[tuple[str, int]]] = None  # [(price_str, quantity_int), ...]
-    no_dollars: Optional[list[tuple[str, int]]] = None
+    yes: list[tuple[int, int]] | None = None  # [(price, quantity), ...]
+    no: list[tuple[int, int]] | None = None
+    yes_dollars: list[tuple[str, int]] | None = None  # [(price_str, quantity_int), ...]
+    no_dollars: list[tuple[str, int]] | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -262,8 +261,8 @@ class Orderbook(BaseModel):
 class OrderbookFp(BaseModel):
     """Fixed-point orderbook data."""
 
-    yes_dollars: Optional[list[tuple[str, int]]] = None  # [(price_str, quantity_int), ...]
-    no_dollars: Optional[list[tuple[str, int]]] = None
+    yes_dollars: list[tuple[str, int]] | None = None  # [(price_str, quantity_int), ...]
+    no_dollars: list[tuple[str, int]] | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -272,7 +271,7 @@ class OrderbookResponse(BaseModel):
     """Pydantic model for the orderbook API response."""
 
     orderbook: Orderbook
-    orderbook_fp: Optional[OrderbookFp] = None
+    orderbook_fp: OrderbookFp | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -291,42 +290,42 @@ class OrderbookResponse(BaseModel):
         return [OrderbookLevel(price=p[0], quantity=p[1]) for p in self.orderbook.no]
 
     @cached_property
-    def best_yes_bid(self) -> Optional[int]:
+    def best_yes_bid(self) -> int | None:
         """Highest YES bid price, or None if no bids."""
         if not self.orderbook.yes:
             return None
         return max(p[0] for p in self.orderbook.yes)
 
     @cached_property
-    def best_no_bid(self) -> Optional[int]:
+    def best_no_bid(self) -> int | None:
         """Highest NO bid price, or None if no bids."""
         if not self.orderbook.no:
             return None
         return max(p[0] for p in self.orderbook.no)
 
     @cached_property
-    def best_yes_ask(self) -> Optional[int]:
+    def best_yes_ask(self) -> int | None:
         """Lowest YES ask (= 100 - best NO bid)."""
         if self.best_no_bid is None:
             return None
         return 100 - self.best_no_bid
 
     @cached_property
-    def spread(self) -> Optional[int]:
+    def spread(self) -> int | None:
         """Bid-ask spread in cents. None if no two-sided market."""
         if self.best_yes_bid is None or self.best_yes_ask is None:
             return None
         return self.best_yes_ask - self.best_yes_bid
 
     @cached_property
-    def mid(self) -> Optional[float]:
+    def mid(self) -> float | None:
         """Mid price. None if no two-sided market."""
         if self.best_yes_bid is None or self.best_yes_ask is None:
             return None
         return (self.best_yes_bid + self.best_yes_ask) / 2
 
     @cached_property
-    def spread_bps(self) -> Optional[float]:
+    def spread_bps(self) -> float | None:
         """Spread as basis points of mid. None if no two-sided market."""
         if self.spread is None or self.mid is None or self.mid == 0:
             return None
@@ -345,7 +344,7 @@ class OrderbookResponse(BaseModel):
         return sum(q for p, q in self.orderbook.no if p >= through_price)
 
     @cached_property
-    def imbalance(self) -> Optional[float]:
+    def imbalance(self) -> float | None:
         """Order imbalance: (yes_depth - no_depth) / (yes_depth + no_depth). Range [-1, 1]."""
         yes_total = sum(q for _, q in self.orderbook.yes) if self.orderbook.yes else 0
         no_total = sum(q for _, q in self.orderbook.no) if self.orderbook.no else 0
@@ -354,7 +353,7 @@ class OrderbookResponse(BaseModel):
             return None
         return (yes_total - no_total) / total
 
-    def vwap_to_fill(self, side: str, size: int) -> Optional[float]:
+    def vwap_to_fill(self, side: str, size: int) -> float | None:
         """Volume-weighted average price to fill `size` contracts.
 
         Args:
@@ -422,13 +421,13 @@ class ExchangeStatus(BaseModel):
 
 class Announcement(BaseModel):
     """Exchange announcement."""
-    id: Optional[str] = None
+    id: str | None = None
     title: str
-    body: Optional[str] = None
-    type: Optional[str] = None
-    created_time: Optional[str] = None
-    delivery_time: Optional[str] = None
-    status: Optional[str] = None
+    body: str | None = None
+    type: str | None = None
+    created_time: str | None = None
+    delivery_time: str | None = None
+    status: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -449,9 +448,9 @@ class RateLimitTier(BaseModel):
 
 class APILimits(BaseModel):
     """API rate limits for the authenticated user."""
-    usage_tier: Optional[str] = None
-    read_limit: Optional[int] = None
-    write_limit: Optional[int] = None
+    usage_tier: str | None = None
+    read_limit: int | None = None
+    write_limit: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -465,10 +464,10 @@ class APILimits(BaseModel):
 class APIKey(BaseModel):
     """API key information."""
     id: str = Field(validation_alias="api_key_id")
-    name: Optional[str] = None
-    created_time: Optional[str] = None
-    last_used: Optional[str] = None
-    scopes: Optional[list[str]] = None
+    name: str | None = None
+    created_time: str | None = None
+    last_used: str | None = None
+    scopes: list[str] | None = None
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -481,7 +480,7 @@ class GeneratedAPIKey(BaseModel):
     """Newly generated API key with private key (only returned once)."""
     id: str = Field(validation_alias="api_key_id")
     private_key: str
-    name: Optional[str] = None
+    name: str | None = None
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -491,11 +490,11 @@ class GeneratedAPIKey(BaseModel):
 class SeriesModel(BaseModel):
     """Pydantic model for Series data."""
     ticker: str
-    title: Optional[str] = None
-    category: Optional[str] = None
-    tags: Optional[list[str]] = None
-    settlement_timer_seconds: Optional[int] = None
-    frequency: Optional[str] = None
+    title: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    settlement_timer_seconds: int | None = None
+    frequency: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -507,9 +506,9 @@ class TradeModel(BaseModel):
     count: int
     yes_price: int
     no_price: int
-    taker_side: Optional[str] = None
-    created_time: Optional[str] = None
-    ts: Optional[int] = None
+    taker_side: str | None = None
+    created_time: str | None = None
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -521,16 +520,16 @@ class TradeModel(BaseModel):
 class SettlementModel(BaseModel):
     """Settlement record for a resolved position."""
     ticker: str
-    event_ticker: Optional[str] = None
-    market_result: Optional[str] = None  # "yes" or "no"
+    event_ticker: str | None = None
+    market_result: str | None = None  # "yes" or "no"
     yes_count: int = 0
     no_count: int = 0
     yes_total_cost: int = 0
     no_total_cost: int = 0
     revenue: int = 0  # Payout in cents
     value: int = 0
-    fee_cost: Optional[str] = None  # Dollar string like "0.3200"
-    settled_time: Optional[str] = None
+    fee_cost: str | None = None  # Dollar string like "0.3200"
+    settled_time: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -542,7 +541,7 @@ class SettlementModel(BaseModel):
     @property
     def pnl(self) -> int:
         """Net P&L in cents (revenue - costs - fees)."""
-        fee_cents = int(float(self.fee_cost or 0) * 100)
+        fee_cents = round(float(self.fee_cost or 0) * 100)
         return self.revenue - self.yes_total_cost - self.no_total_cost - fee_cents
 
     def _repr_html_(self) -> str:
@@ -570,20 +569,14 @@ class OrderGroupModel(BaseModel):
     group are cancelled.
     """
     # API returns 'id' in list/get, but 'order_group_id' in create response
-    id: Optional[str] = Field(default=None, alias="id")
-    order_group_id: Optional[str] = Field(default=None)
-    is_auto_cancel_enabled: Optional[bool] = None
-    contracts_limit: Optional[int] = None
-    contracts_limit_fp: Optional[str] = None
+    id: str = Field(validation_alias=AliasChoices('id', 'order_group_id'))
+    is_auto_cancel_enabled: bool | None = None
+    contracts_limit: int | None = None
+    contracts_limit_fp: str | None = None
     # Only returned from get_order_group (not list)
-    orders: Optional[list[str]] = None
+    orders: list[str] | None = None
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
-    @property
-    def group_id(self) -> str:
-        """Get the order group ID (handles both API response formats)."""
-        return self.id or self.order_group_id or ""
 
     def _repr_html_(self) -> str:
         from ._repr import order_group_html
@@ -596,7 +589,7 @@ class SubaccountModel(BaseModel):
     """Subaccount info."""
     subaccount_id: str
     subaccount_number: int
-    created_time: Optional[str] = None
+    created_time: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -605,7 +598,7 @@ class SubaccountBalanceModel(BaseModel):
     """Balance for a single subaccount."""
     subaccount_id: str
     balance: int  # In cents
-    portfolio_value: Optional[int] = None
+    portfolio_value: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -616,7 +609,7 @@ class SubaccountTransferModel(BaseModel):
     from_subaccount_id: str
     to_subaccount_id: str
     amount: int  # In cents
-    created_time: Optional[str] = None
+    created_time: str | None = None
 
     model_config = ConfigDict(extra="ignore")
 

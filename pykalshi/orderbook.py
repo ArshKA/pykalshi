@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -50,26 +49,26 @@ class OrderbookManager:
             book[price] = new_qty
 
     @property
-    def best_bid(self) -> Optional[int]:
+    def best_bid(self) -> int | None:
         """Best YES bid price."""
         return max(self.yes.keys()) if self.yes else None
 
     @property
-    def best_ask(self) -> Optional[int]:
+    def best_ask(self) -> int | None:
         """Best YES ask (= 100 - best NO bid)."""
         if not self.no:
             return None
         return 100 - max(self.no.keys())
 
     @property
-    def mid(self) -> Optional[float]:
+    def mid(self) -> float | None:
         """Mid price."""
         if self.best_bid is None or self.best_ask is None:
             return None
         return (self.best_bid + self.best_ask) / 2
 
     @property
-    def spread(self) -> Optional[int]:
+    def spread(self) -> int | None:
         """Bid-ask spread in cents."""
         if self.best_bid is None or self.best_ask is None:
             return None
@@ -90,7 +89,7 @@ class OrderbookManager:
         return sum(self.no[p] for p in sorted_prices)
 
     @property
-    def imbalance(self) -> Optional[float]:
+    def imbalance(self) -> float | None:
         """Order imbalance [-1, 1]. Positive = more bids."""
         bid_total = sum(self.yes.values()) if self.yes else 0
         ask_total = sum(self.no.values()) if self.no else 0
@@ -99,7 +98,7 @@ class OrderbookManager:
             return None
         return (bid_total - ask_total) / total
 
-    def cost_to_buy(self, size: int) -> Optional[tuple[int, float]]:
+    def cost_to_buy(self, size: int) -> tuple[int, float] | None:
         """Calculate cost to buy `size` YES contracts.
 
         Returns:
@@ -120,7 +119,7 @@ class OrderbookManager:
                 return (cost, cost / size)
         return None
 
-    def cost_to_sell(self, size: int) -> Optional[tuple[int, float]]:
+    def cost_to_sell(self, size: int) -> tuple[int, float] | None:
         """Calculate proceeds from selling `size` YES contracts.
 
         Returns:

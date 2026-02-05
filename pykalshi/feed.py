@@ -11,7 +11,7 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
@@ -36,14 +36,14 @@ class TickerMessage(BaseModel):
     """
 
     market_ticker: str
-    price: Optional[int] = None
-    yes_bid: Optional[int] = None
-    yes_ask: Optional[int] = None
-    volume: Optional[int] = None
-    open_interest: Optional[int] = None
-    dollar_volume: Optional[int] = None
-    dollar_open_interest: Optional[int] = None
-    ts: Optional[int] = None
+    price: int | None = None
+    yes_bid: int | None = None
+    yes_ask: int | None = None
+    volume: int | None = None
+    open_interest: int | None = None
+    dollar_volume: int | None = None
+    dollar_open_interest: int | None = None
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -56,8 +56,8 @@ class OrderbookSnapshotMessage(BaseModel):
     """
 
     market_ticker: str
-    yes: Optional[list[tuple[int, int]]] = None  # [(price, quantity), ...]
-    no: Optional[list[tuple[int, int]]] = None
+    yes: list[tuple[int, int]] | None = None  # [(price, quantity), ...]
+    no: list[tuple[int, int]] | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -82,14 +82,14 @@ class TradeMessage(BaseModel):
     Sent when any trade occurs on subscribed markets.
     """
 
-    market_ticker: Optional[str] = None
-    ticker: Optional[str] = None
-    trade_id: Optional[str] = None
-    count: Optional[int] = None
-    yes_price: Optional[int] = None
-    no_price: Optional[int] = None
-    taker_side: Optional[str] = None
-    ts: Optional[int] = None
+    market_ticker: str | None = None
+    ticker: str | None = None
+    trade_id: str | None = None
+    count: int | None = None
+    yes_price: int | None = None
+    no_price: int | None = None
+    taker_side: str | None = None
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -100,16 +100,16 @@ class FillMessage(BaseModel):
     Sent when your orders are filled.
     """
 
-    trade_id: Optional[str] = None
-    ticker: Optional[str] = None
-    order_id: Optional[str] = None
-    side: Optional[str] = None
-    action: Optional[str] = None
-    count: Optional[int] = None
-    yes_price: Optional[int] = None
-    no_price: Optional[int] = None
-    is_taker: Optional[bool] = None
-    ts: Optional[int] = None
+    trade_id: str | None = None
+    ticker: str | None = None
+    order_id: str | None = None
+    side: str | None = None
+    action: str | None = None
+    count: int | None = None
+    yes_price: int | None = None
+    no_price: int | None = None
+    is_taker: bool | None = None
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -122,13 +122,13 @@ class PositionMessage(BaseModel):
     """
 
     ticker: str
-    position: Optional[int] = None  # Net contracts (positive = yes, negative = no)
-    market_exposure: Optional[int] = None  # Current exposure in cents
-    realized_pnl: Optional[int] = None  # Realized P&L in cents
-    total_traded: Optional[int] = None  # Total contracts traded
-    resting_orders_count: Optional[int] = None  # Open orders count
-    fees_paid: Optional[int] = None  # Fees paid in cents
-    ts: Optional[int] = None
+    position: int | None = None  # Net contracts (positive = yes, negative = no)
+    market_exposure: int | None = None  # Current exposure in cents
+    realized_pnl: int | None = None  # Realized P&L in cents
+    total_traded: int | None = None  # Total contracts traded
+    resting_orders_count: int | None = None  # Open orders count
+    fees_paid: int | None = None  # Fees paid in cents
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -140,9 +140,9 @@ class MarketLifecycleMessage(BaseModel):
     """
 
     market_ticker: str
-    status: Optional[str] = None
-    result: Optional[str] = None  # Settlement result ("yes" or "no")
-    ts: Optional[int] = None
+    status: str | None = None
+    result: str | None = None  # Settlement result ("yes" or "no")
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -154,14 +154,14 @@ class OrderGroupUpdateMessage(BaseModel):
     """
 
     order_group_id: str
-    status: Optional[str] = None  # "active", "triggered", "canceled"
-    ts: Optional[int] = None
+    status: str | None = None  # "active", "triggered", "canceled"
+    ts: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 # Type alias for orderbook messages (handlers receive either type)
-OrderbookMessage = Union[OrderbookSnapshotMessage, OrderbookDeltaMessage]
+OrderbookMessage = OrderbookSnapshotMessage | OrderbookDeltaMessage
 
 # Maps message "type" field to model class
 _MESSAGE_MODELS: dict[str, type[BaseModel]] = {
@@ -243,8 +243,8 @@ class Feed:
         self._handlers: dict[str, list[Callable]] = {}
         self._active_subs: list[dict] = []
         self._ws: Any = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._thread: Optional[threading.Thread] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
         self._running = False
         self._cmd_id_counter = itertools.count(1)  # Thread-safe counter
         self._connected = threading.Event()
@@ -252,9 +252,9 @@ class Feed:
         self._metrics_lock = threading.Lock()
 
         # Latency and health tracking (protected by _metrics_lock)
-        self._connected_at: Optional[float] = None
-        self._last_message_at: Optional[float] = None
-        self._last_server_ts: Optional[int] = None  # Server timestamp in ms
+        self._connected_at: float | None = None
+        self._last_message_at: float | None = None
+        self._last_server_ts: int | None = None  # Server timestamp in ms
         self._message_count: int = 0
         self._reconnect_count: int = 0
 
@@ -262,7 +262,7 @@ class Feed:
         self._ws_url = DEMO_WS_BASE if "demo" in client.api_base else DEFAULT_WS_BASE
 
     def on(
-        self, channel: str, handler: Optional[Callable] = None
+        self, channel: str, handler: Callable | None = None
     ) -> Callable:
         """Register a handler for a channel.
 
@@ -296,8 +296,8 @@ class Feed:
         self,
         channel: str,
         *,
-        market_ticker: Optional[str] = None,
-        market_tickers: Optional[list[str]] = None,
+        market_ticker: str | None = None,
+        market_tickers: list[str] | None = None,
     ) -> None:
         """Subscribe to a channel.
 
@@ -331,8 +331,8 @@ class Feed:
         self,
         channel: str,
         *,
-        market_ticker: Optional[str] = None,
-        market_tickers: Optional[list[str]] = None,
+        market_ticker: str | None = None,
+        market_tickers: list[str] | None = None,
     ) -> None:
         """Unsubscribe from a channel.
 
@@ -417,7 +417,7 @@ class Feed:
         return self._connected.is_set()
 
     @property
-    def latency_ms(self) -> Optional[float]:
+    def latency_ms(self) -> float | None:
         """Estimated latency in milliseconds based on last message timestamp.
 
         Returns None if no messages with timestamps have been received.
@@ -437,7 +437,7 @@ class Feed:
             return self._message_count
 
     @property
-    def uptime_seconds(self) -> Optional[float]:
+    def uptime_seconds(self) -> float | None:
         """Seconds since connection was established. None if not connected."""
         with self._metrics_lock:
             if self._connected_at is None or not self.is_connected:
@@ -445,7 +445,7 @@ class Feed:
             return time.time() - self._connected_at
 
     @property
-    def seconds_since_last_message(self) -> Optional[float]:
+    def seconds_since_last_message(self) -> float | None:
         """Seconds since last message was received. None if no messages yet."""
         with self._metrics_lock:
             if self._last_message_at is None:
