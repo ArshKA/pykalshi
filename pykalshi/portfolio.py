@@ -345,7 +345,9 @@ class Portfolio:
         response = self._client.post("/portfolio/orders/batched", {"orders": prepared})
         result = []
         for item in response.get("orders", []):
-            order_data = item.get("order") or item
+            order_data = item.get("order")
+            if order_data is None:
+                continue
             result.append(Order(self._client, OrderModel.model_validate(order_data)))
         return DataFrameList(result)
 
@@ -362,7 +364,9 @@ class Portfolio:
         response = self._client.delete("/portfolio/orders/batched", {"orders": orders})
         result = []
         for item in response.get("orders", []):
-            order_data = item.get("order") or item
+            order_data = item.get("order")
+            if order_data is None:
+                continue
             result.append(Order(self._client, OrderModel.model_validate(order_data)))
         return DataFrameList(result)
 
@@ -483,6 +487,7 @@ class Portfolio:
         Returns order group details including list of order IDs in the group.
         """
         response = self._client.get(f"/portfolio/order_groups/{order_group_id}")
+        response["id"] = order_group_id
         return OrderGroupModel.model_validate(response)
 
     def trigger_order_group(self, order_group_id: str) -> None:
