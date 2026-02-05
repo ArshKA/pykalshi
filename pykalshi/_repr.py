@@ -59,28 +59,40 @@ KALSHI_BASE_URL = "https://kalshi.com"
 
 # --- Formatting helpers ---
 
-def _ticker_link(ticker: str, label: str | None = None) -> str:
-    """Render ticker as a clickable link to Kalshi."""
-    display = escape(label or ticker)
-    safe_ticker = escape(ticker)
-    url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
-    return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
+def _kalshi_link(display_ticker: str, url_ticker: str | None = None) -> str:
+    """Render ticker as a clickable link to Kalshi.
+
+    Args:
+        display_ticker: The ticker to display in the link text.
+        url_ticker: The ticker to use in the URL. If None, the link is not clickable.
+    """
+    display = escape(display_ticker)
+    if url_ticker:
+        safe_ticker = escape(url_ticker.lower())
+        url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
+        return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
+    # No valid URL ticker - render as plain text
+    return f'<span class="m">{display}</span>'
+
+
+def _ticker_link(ticker: str, event_ticker: str | None = None) -> str:
+    """Render market ticker as a clickable link to Kalshi.
+
+    Args:
+        ticker: The market ticker to display.
+        event_ticker: The event ticker to use for the URL (required for working links).
+    """
+    return _kalshi_link(ticker, event_ticker)
 
 
 def _event_link(event_ticker: str, label: str | None = None) -> str:
     """Render event ticker as a clickable link to Kalshi."""
-    display = escape(label or event_ticker)
-    safe_ticker = escape(event_ticker)
-    url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
-    return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
+    return _kalshi_link(label or event_ticker, event_ticker)
 
 
 def _series_link(series_ticker: str, label: str | None = None) -> str:
     """Render series ticker as a clickable link to Kalshi."""
-    display = escape(label or series_ticker)
-    safe_ticker = escape(series_ticker)
-    url = f"{KALSHI_BASE_URL}/markets/{safe_ticker}"
-    return f'<a href="{url}" target="_blank" class="m" style="color:inherit;text-decoration:none;border-bottom:1px dashed #9ca3af">{display}</a>'
+    return _kalshi_link(label or series_ticker, series_ticker)
 
 
 def _cents(v: int | None, as_dollars: bool = False) -> str:
@@ -214,7 +226,7 @@ def market_html(m: Market) -> str:
         spread_viz = _spread_viz(m.yes_bid, m.yes_ask)
 
     rows = [
-        _row("Ticker", _ticker_link(m.ticker)),
+        _row("Ticker", _ticker_link(m.ticker, m.event_ticker)),
         _row("Status", _status_pill(status)),
         _row("YES", f"{_cents(m.yes_bid)} / {_cents(m.yes_ask)}{spread_viz}"),
         _row("Last", _cents(m.last_price)),
@@ -408,7 +420,7 @@ def settlement_html(s: SettlementModel) -> str:
     position_str = " ".join(pos_parts) if pos_parts else "—"
 
     rows = [
-        _row("Ticker", _ticker_link(s.ticker)),
+        _row("Ticker", _ticker_link(s.ticker, s.event_ticker)),
         _row("Result", _result_pill(s.market_result)),
         _row("Position", position_str),
         _row("Revenue", _cents(s.revenue, as_dollars=True)),
