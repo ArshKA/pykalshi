@@ -1,4 +1,4 @@
-# pykalshi
+# PyKalshi
 
 [![PyPI version](https://img.shields.io/pypi/v/pykalshi.svg)](https://pypi.org/project/pykalshi/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pykalshi.svg)](https://pypi.org/project/pykalshi/)
