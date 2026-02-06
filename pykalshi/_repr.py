@@ -416,10 +416,23 @@ def orderbook_html(ob: OrderbookResponse) -> str:
         for i in range(max(len(yes_levels), len(no_levels))):
             yes = yes_levels[i] if i < len(yes_levels) else None
             no = no_levels[i] if i < len(no_levels) else None
-            yes_str = f"{yes.price}¢ × {yes.quantity}{_depth_bar(yes.quantity, max_qty, 'depth-yes')}" if yes else ""
-            no_str = f"{no.price}¢ × {no.quantity}{_depth_bar(no.quantity, max_qty, 'depth-no')}" if no else ""
-            depth_rows.append(f"<tr><td>{yes_str}</td><td>{no_str}</td></tr>")
-        depth_html = f'<table style="margin-top:8px"><tr><th>YES Bids</th><th>NO Bids</th></tr>{"".join(depth_rows)}</table>'
+            yes_text = f'{yes.price}¢ × {yes.quantity}' if yes else ""
+            yes_bar = _depth_bar(yes.quantity, max_qty, 'depth-yes') if yes else ""
+            no_text = f'{no.price}¢ × {no.quantity}' if no else ""
+            no_bar = _depth_bar(no.quantity, max_qty, 'depth-no') if no else ""
+            depth_rows.append(
+                f'<tr>'
+                f'<td class="m" style="text-align:right;white-space:nowrap">{yes_text}</td>'
+                f'<td>{yes_bar}</td>'
+                f'<td class="m" style="text-align:right;white-space:nowrap;padding-left:16px">{no_text}</td>'
+                f'<td>{no_bar}</td>'
+                f'</tr>'
+            )
+        depth_html = (
+            f'<table style="margin-top:8px">'
+            f'<tr><th colspan="2">YES Bids</th><th colspan="2" style="padding-left:16px">NO Bids</th></tr>'
+            f'{"".join(depth_rows)}</table>'
+        )
 
     return _wrap(f"<table>{''.join(rows)}</table>{depth_html}")
 
