@@ -402,9 +402,8 @@ def orderbook_html(ob: OrderbookResponse) -> str:
         _row("Imbalance", f"{imbalance:+.2f}" if imbalance is not None else "—"),
     ]
 
-    # Show top 5 levels each side with depth bars
-    yes_levels = ob.yes_levels[:5] if ob.yes_levels else []
-    no_levels = ob.no_levels[:5] if ob.no_levels else []
+    yes_levels = ob.yes_levels or []
+    no_levels = ob.no_levels or []
 
     depth_html = ""
     if yes_levels or no_levels:
