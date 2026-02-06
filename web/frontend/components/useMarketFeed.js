@@ -101,7 +101,8 @@ function useMarketFeed(ticker) {
                     };
                     // Calculate latency if server timestamp is available
                     if (msg.ts) {
-                        newMetrics.latencyMs = receiveTime - msg.ts;
+                        const serverMs = msg.ts < 1e12 ? msg.ts * 1000 : msg.ts;
+                        newMetrics.latencyMs = receiveTime - serverMs;
                     }
                     return newMetrics;
                 });
