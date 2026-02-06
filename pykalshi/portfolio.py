@@ -162,19 +162,20 @@ class Portfolio:
             yes_price = 100 - no_price
 
         # Fetch original order to get required fields if not provided
-        if ticker is None or action is None or side is None:
+        if ticker is None or action is None or side is None or count is None:
             original = self.get_order(order_id)
             ticker = ticker or original.ticker
             action = action or original.action
             side = side or original.side
+            if count is None:
+                count = original.remaining_count
 
         body: dict = {
             "ticker": ticker,
             "action": action.value if isinstance(action, Action) else action,
             "side": side.value if isinstance(side, Side) else side,
+            "count": count,
         }
-        if count is not None:
-            body["count"] = count
         if yes_price is not None:
             body["yes_price"] = yes_price
         if subaccount is not None:

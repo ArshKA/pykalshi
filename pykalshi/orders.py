@@ -102,7 +102,7 @@ class Order:
         """
         updated = self._client.portfolio.amend_order(
             self.order_id,
-            count=count,
+            count=count if count is not None else self.remaining_count,
             yes_price=yes_price,
             no_price=no_price,
             # Pass existing order data to avoid re-fetch
