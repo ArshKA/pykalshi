@@ -11,7 +11,7 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, Union, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
@@ -163,7 +163,7 @@ class OrderGroupUpdateMessage(BaseModel):
 
 
 # Type alias for orderbook messages (handlers receive either type)
-OrderbookMessage = OrderbookSnapshotMessage | OrderbookDeltaMessage
+OrderbookMessage = Union[OrderbookSnapshotMessage, OrderbookDeltaMessage]
 
 # Maps message "type" field to model class
 _MESSAGE_MODELS: dict[str, type[BaseModel]] = {

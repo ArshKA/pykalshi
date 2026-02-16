@@ -128,7 +128,7 @@ class KalshiClient:
         signature = self.private_key.sign(
             message.encode(),
             padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH
+                mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH
             ),
             hashes.SHA256(),
         )
@@ -170,10 +170,12 @@ class KalshiClient:
         try:
             error_data = response.json()
             response_body = error_data
-            message = error_data.get("message") or error_data.get(
+            # Handle nested {"error": {"code": ..., "message": ...}} format
+            inner = error_data.get("error", {}) if isinstance(error_data.get("error"), dict) else {}
+            message = inner.get("message") or error_data.get("message") or error_data.get(
                 "error_message", "Unknown Error"
             )
-            code = error_data.get("code") or error_data.get("error_code")
+            code = inner.get("code") or error_data.get("code") or error_data.get("error_code")
         except (ValueError, requests.exceptions.JSONDecodeError):
             message = response.text
             response_body = response.text
