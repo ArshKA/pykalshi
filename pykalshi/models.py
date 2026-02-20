@@ -683,13 +683,14 @@ class RfqModel(BaseModel):
     market_ticker: str | None = None
     status: str | None = None
     contracts: int | None = None
+    contracts_fp: str | None = None
     target_cost_dollars: str | None = None
     rest_remainder: bool | None = None
     mve_collection_ticker: str | None = None
     mve_selected_legs: list[MveSelectedLeg] | None = None
-    created_time: str | None = None
+    created_ts: str | None = None
     expiration_time: str | None = None
-    user_id: str | None = None
+    creator_id: str | None = None
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -700,11 +701,13 @@ class QuoteModel(BaseModel):
     rfq_id: str | None = None
     market_ticker: str | None = None
     status: str | None = None
-    yes_bid: str | None = None  # FixedPointDollars
-    no_bid: str | None = None  # FixedPointDollars
+    yes_bid: int | None = None  # cents
+    no_bid: int | None = None  # cents
+    yes_bid_dollars: str | None = None  # FixedPointDollars
+    no_bid_dollars: str | None = None  # FixedPointDollars
     rest_remainder: bool | None = None
-    created_time: str | None = None
+    created_ts: str | None = None
     expiration_time: str | None = None
-    user_id: str | None = None
+    creator_id: str | None = None
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True)

@@ -56,13 +56,14 @@ class Communications:
                                  Use this OR contracts, not both.
             rest_remainder: If True, rest any unfilled portion on the orderbook.
         """
-        body: dict = {"market_ticker": market_ticker.upper()}
+        body: dict = {
+            "market_ticker": market_ticker.upper(),
+            "rest_remainder": rest_remainder,
+        }
         if contracts is not None:
             body["contracts"] = contracts
         if target_cost_dollars is not None:
             body["target_cost_dollars"] = target_cost_dollars
-        if rest_remainder:
-            body["rest_remainder"] = True
 
         response = self._client.post("/communications/rfqs", body)
         return RfqModel.model_validate(response.get("rfq", response))
@@ -109,13 +110,12 @@ class Communications:
         self,
         rfq_id: str,
         *,
-        yes_bid: str | None = None,
-        no_bid: str | None = None,
+        yes_bid: str,
+        no_bid: str,
         rest_remainder: bool = False,
     ) -> QuoteModel:
         """Create a quote in response to an RFQ.
 
-        Quotes are two-sided: specify yes_bid, no_bid, or both.
         Prices are in FixedPointDollars (e.g., "0.45").
 
         Args:
@@ -124,13 +124,12 @@ class Communications:
             no_bid: Your bid price for the NO side (FixedPointDollars).
             rest_remainder: If True, rest any unfilled portion on the orderbook.
         """
-        body: dict = {"rfq_id": rfq_id}
-        if yes_bid is not None:
-            body["yes_bid"] = yes_bid
-        if no_bid is not None:
-            body["no_bid"] = no_bid
-        if rest_remainder:
-            body["rest_remainder"] = True
+        body: dict = {
+            "rfq_id": rfq_id,
+            "yes_bid": yes_bid,
+            "no_bid": no_bid,
+            "rest_remainder": rest_remainder,
+        }
 
         response = self._client.post("/communications/quotes", body)
         return QuoteModel.model_validate(response.get("quote", response))
@@ -184,13 +183,14 @@ class AsyncCommunications(Communications):
 
     async def create_rfq(self, market_ticker, *, contracts=None,  # type: ignore[override]
                          target_cost_dollars=None, rest_remainder=False) -> RfqModel:
-        body: dict = {"market_ticker": market_ticker.upper()}
+        body: dict = {
+            "market_ticker": market_ticker.upper(),
+            "rest_remainder": rest_remainder,
+        }
         if contracts is not None:
             body["contracts"] = contracts
         if target_cost_dollars is not None:
             body["target_cost_dollars"] = target_cost_dollars
-        if rest_remainder:
-            body["rest_remainder"] = True
         response = await self._client.post("/communications/rfqs", body)
         return RfqModel.model_validate(response.get("rfq", response))
 
@@ -213,15 +213,14 @@ class AsyncCommunications(Communications):
         response = await self._client.get(f"/communications/rfqs/{rfq_id}")
         return RfqModel.model_validate(response.get("rfq", response))
 
-    async def create_quote(self, rfq_id, *, yes_bid=None, no_bid=None,  # type: ignore[override]
+    async def create_quote(self, rfq_id, *, yes_bid, no_bid,  # type: ignore[override]
                            rest_remainder=False) -> QuoteModel:
-        body: dict = {"rfq_id": rfq_id}
-        if yes_bid is not None:
-            body["yes_bid"] = yes_bid
-        if no_bid is not None:
-            body["no_bid"] = no_bid
-        if rest_remainder:
-            body["rest_remainder"] = True
+        body: dict = {
+            "rfq_id": rfq_id,
+            "yes_bid": yes_bid,
+            "no_bid": no_bid,
+            "rest_remainder": rest_remainder,
+        }
         response = await self._client.post("/communications/quotes", body)
         return QuoteModel.model_validate(response.get("quote", response))
 

@@ -60,7 +60,7 @@ class MveCollection:
         """
         from .markets import Market
 
-        body = {"selected_markets": selected_markets}
+        body = {"selected_markets": selected_markets, "with_market_payload": True}
         response = self._client.post(
             f"/multivariate_event_collections/{self.collection_ticker}", body
         )
@@ -128,7 +128,7 @@ class AsyncMveCollection(MveCollection):
 
     async def create_market(self, selected_markets: list[dict[str, str]]) -> AsyncMarket:  # type: ignore[override]
         from .markets import AsyncMarket
-        body = {"selected_markets": selected_markets}
+        body = {"selected_markets": selected_markets, "with_market_payload": True}
         response = await self._client.post(
             f"/multivariate_event_collections/{self.collection_ticker}", body
         )

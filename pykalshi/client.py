@@ -324,7 +324,7 @@ class KalshiClient(_BaseKalshiClient):
     def get_mve_collection(self, collection_ticker: str) -> MveCollection:
         """Get a multivariate event collection by ticker."""
         response = self.get(f"/multivariate_event_collections/{collection_ticker}")
-        model = MveCollectionModel.model_validate(response.get("collection", response))
+        model = MveCollectionModel.model_validate(response.get("multivariate_contract", response))
         return MveCollection(self, model)
 
     def get_mve_collections(
@@ -346,7 +346,7 @@ class KalshiClient(_BaseKalshiClient):
             "cursor": cursor,
         }
         data = self.paginated_get(
-            "/multivariate_event_collections", "collections", params, fetch_all
+            "/multivariate_event_collections", "multivariate_contracts", params, fetch_all
         )
         return DataFrameList(
             MveCollection(self, MveCollectionModel.model_validate(c)) for c in data

@@ -206,14 +206,14 @@ class TestCommunications:
         """List quotes returns list of QuoteModel objects.
 
         The API requires a valid creator_user_id or rfq_creator_user_id.
-        We need an RFQ with a user_id to test this.
+        We need an RFQ with a creator_id to test this.
         """
         rfqs = client.communications.get_rfqs(limit=1)
-        if not rfqs or not rfqs[0].user_id:
-            pytest.skip("No RFQs with user_id available to query quotes")
+        if not rfqs or not rfqs[0].creator_id:
+            pytest.skip("No RFQs with creator_id available to query quotes")
 
         quotes = client.communications.get_quotes(
-            rfq_creator_user_id=rfqs[0].user_id, limit=10
+            rfq_creator_user_id=rfqs[0].creator_id, limit=10
         )
 
         assert isinstance(quotes, list)

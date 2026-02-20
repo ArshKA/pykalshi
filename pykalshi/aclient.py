@@ -313,7 +313,7 @@ class AsyncKalshiClient(_BaseKalshiClient):
 
     async def get_mve_collection(self, collection_ticker: str) -> AsyncMveCollection:
         response = await self.get(f"/multivariate_event_collections/{collection_ticker}")
-        model = MveCollectionModel.model_validate(response.get("collection", response))
+        model = MveCollectionModel.model_validate(response.get("multivariate_contract", response))
         return AsyncMveCollection(self, model)
 
     async def get_mve_collections(
@@ -334,7 +334,7 @@ class AsyncKalshiClient(_BaseKalshiClient):
             "cursor": cursor,
         }
         data = await self.paginated_get(
-            "/multivariate_event_collections", "collections", params, fetch_all
+            "/multivariate_event_collections", "multivariate_contracts", params, fetch_all
         )
         return DataFrameList(
             AsyncMveCollection(self, MveCollectionModel.model_validate(c)) for c in data

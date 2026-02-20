@@ -198,8 +198,8 @@ class TestRfqModel:
             "mve_selected_legs": [
                 {"event_ticker": "E1", "market_ticker": "M1", "side": "yes"},
             ],
-            "created_time": "2026-01-15T10:00:00Z",
-            "user_id": "user-123",
+            "created_ts": "2026-01-15T10:00:00Z",
+            "creator_id": "user-123",
         })
         assert rfq.status == "active"
         assert rfq.contracts == 10
@@ -224,13 +224,16 @@ class TestQuoteModel:
             "rfq_id": "rfq-1",
             "market_ticker": "KXMVE-COMBO",
             "status": "pending",
-            "yes_bid": "0.45",
-            "no_bid": "0.55",
+            "yes_bid": 45,
+            "no_bid": 55,
+            "yes_bid_dollars": "0.45",
+            "no_bid_dollars": "0.55",
             "rest_remainder": False,
-            "created_time": "2026-01-15T10:05:00Z",
+            "created_ts": "2026-01-15T10:05:00Z",
         })
-        assert quote.yes_bid == "0.45"
-        assert quote.no_bid == "0.55"
+        assert quote.yes_bid == 45
+        assert quote.no_bid == 55
+        assert quote.yes_bid_dollars == "0.45"
         assert quote.status == "pending"
 
 
@@ -242,7 +245,7 @@ class TestGetMveCollection:
     def test_get_mve_collection(self, client, mock_response):
         """Test fetching a collection by ticker."""
         client._session.request.return_value = mock_response({
-            "collection": {
+            "multivariate_contract": {
                 "collection_ticker": "COL-PRES",
                 "series_ticker": "KXPRES",
                 "title": "Presidential Combo",
@@ -279,7 +282,7 @@ class TestGetMveCollections:
     def test_get_mve_collections(self, client, mock_response):
         """Test listing collections."""
         client._session.request.return_value = mock_response({
-            "collections": [
+            "multivariate_contracts": [
                 {"collection_ticker": "COL-1", "title": "Combo A"},
                 {"collection_ticker": "COL-2", "title": "Combo B"},
             ],
@@ -296,7 +299,7 @@ class TestGetMveCollections:
     def test_get_mve_collections_with_filters(self, client, mock_response):
         """Test listing collections with filters."""
         client._session.request.return_value = mock_response({
-            "collections": [],
+            "multivariate_contracts": [],
             "cursor": "",
         })
 
@@ -315,11 +318,11 @@ class TestGetMveCollections:
         """Test collection pagination with fetch_all."""
         client._session.request.side_effect = [
             mock_response({
-                "collections": [{"collection_ticker": "COL-1"}],
+                "multivariate_contracts": [{"collection_ticker": "COL-1"}],
                 "cursor": "page2",
             }),
             mock_response({
-                "collections": [{"collection_ticker": "COL-2"}],
+                "multivariate_contracts": [{"collection_ticker": "COL-2"}],
                 "cursor": "",
             }),
         ]
@@ -417,7 +420,7 @@ class TestMveCollectionCreateMarket:
         client._session.request.side_effect = [
             # First call: get collection
             mock_response({
-                "collection": {
+                "multivariate_contract": {
                     "collection_ticker": "COL-1",
                     "title": "Test Collection",
                     "associated_events": [
@@ -464,7 +467,7 @@ class TestMveCollectionLookupTicker:
         """Test looking up a combo ticker."""
         client._session.request.side_effect = [
             mock_response({
-                "collection": {"collection_ticker": "COL-1", "title": "Test"}
+                "multivariate_contract": {"collection_ticker": "COL-1", "title": "Test"}
             }),
             mock_response({
                 "market_ticker": "KXMVE-COL1-XYZ",
@@ -483,7 +486,7 @@ class TestMveCollectionLookupTicker:
         """Test looking up an uncreated combo returns 404."""
         client._session.request.side_effect = [
             mock_response({
-                "collection": {"collection_ticker": "COL-1", "title": "Test"}
+                "multivariate_contract": {"collection_ticker": "COL-1", "title": "Test"}
             }),
             mock_response({"message": "Not found"}, status_code=404),
         ]
@@ -503,7 +506,7 @@ class TestMveCollectionGetEvents:
         """Test getting events for a collection delegates to get_multivariate_events."""
         client._session.request.side_effect = [
             mock_response({
-                "collection": {"collection_ticker": "COL-1", "title": "Test"}
+                "multivariate_contract": {"collection_ticker": "COL-1", "title": "Test"}
             }),
             mock_response({
                 "events": [
@@ -530,7 +533,7 @@ class TestMveCollectionObject:
     def test_repr(self, client, mock_response):
         """Test MveCollection repr."""
         client._session.request.return_value = mock_response({
-            "collection": {
+            "multivariate_contract": {
                 "collection_ticker": "COL-1",
                 "title": "Presidential Combo",
                 "associated_events": [{"ticker": "E1"}, {"ticker": "E2"}],
@@ -547,9 +550,9 @@ class TestMveCollectionObject:
     def test_equality(self, client, mock_response):
         """Test MveCollection equality is based on collection_ticker."""
         client._session.request.side_effect = [
-            mock_response({"collection": {"collection_ticker": "COL-1"}}),
-            mock_response({"collection": {"collection_ticker": "COL-1"}}),
-            mock_response({"collection": {"collection_ticker": "COL-2"}}),
+            mock_response({"multivariate_contract": {"collection_ticker": "COL-1"}}),
+            mock_response({"multivariate_contract": {"collection_ticker": "COL-1"}}),
+            mock_response({"multivariate_contract": {"collection_ticker": "COL-2"}}),
         ]
 
         c1 = client.get_mve_collection("COL-1")
@@ -563,7 +566,7 @@ class TestMveCollectionObject:
     def test_attribute_delegation(self, client, mock_response):
         """Test MveCollection delegates unknown attributes to data."""
         client._session.request.return_value = mock_response({
-            "collection": {
+            "multivariate_contract": {
                 "collection_ticker": "COL-1",
                 "description": "A combo collection",
                 "is_ordered": True,
@@ -747,8 +750,10 @@ class TestCommunicationsCreateQuote:
                 "rfq_id": "rfq-001",
                 "market_ticker": "KXMVE-COMBO",
                 "status": "pending",
-                "yes_bid": "0.45",
-                "no_bid": "0.55",
+                "yes_bid": 45,
+                "no_bid": 55,
+                "yes_bid_dollars": "0.45",
+                "no_bid_dollars": "0.55",
             }
         })
 
@@ -759,23 +764,26 @@ class TestCommunicationsCreateQuote:
         assert isinstance(quote, QuoteModel)
         assert quote.quote_id == "q-001"
         assert quote.rfq_id == "rfq-001"
-        assert quote.yes_bid == "0.45"
-        assert quote.no_bid == "0.55"
+        assert quote.yes_bid == 45
+        assert quote.no_bid == 55
 
-    def test_create_quote_one_sided(self, client, mock_response):
-        """Test creating a one-sided quote."""
+    def test_create_quote_zero_bid(self, client, mock_response):
+        """Test creating a quote with zero bids."""
         client._session.request.return_value = mock_response({
             "quote": {
                 "quote_id": "q-002",
                 "rfq_id": "rfq-001",
-                "yes_bid": "0.30",
+                "yes_bid": 30,
+                "no_bid": 0,
             }
         })
 
-        quote = client.communications.create_quote("rfq-001", yes_bid="0.30")
+        quote = client.communications.create_quote(
+            "rfq-001", yes_bid="0.30", no_bid="0.00",
+        )
 
-        assert quote.yes_bid == "0.30"
-        assert quote.no_bid is None
+        assert quote.yes_bid == 30
+        assert quote.no_bid == 0
 
 
 class TestCommunicationsGetQuotes:
@@ -825,7 +833,7 @@ class TestMveWorkflow:
         client._session.request.side_effect = [
             # 1. List collections
             mock_response({
-                "collections": [
+                "multivariate_contracts": [
                     {
                         "collection_ticker": "COL-PRES",
                         "title": "Presidential Combos",
@@ -900,8 +908,8 @@ class TestMveWorkflow:
                     "rfq_id": "rfq-xyz",
                     "market_ticker": "KXMVE-COMBO",
                     "status": "pending",
-                    "yes_bid": "0.40",
-                    "no_bid": "0.60",
+                    "yes_bid": 40,
+                    "no_bid": 60,
                 }
             }),
         ]
@@ -921,7 +929,7 @@ class TestMveWorkflow:
         )
         assert quote.quote_id == "q-abc"
         assert quote.rfq_id == "rfq-xyz"
-        assert quote.yes_bid == "0.40"
+        assert quote.yes_bid == 40
 
 
 class TestCommunicationsCachedProperty:
