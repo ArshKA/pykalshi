@@ -1,6 +1,6 @@
 [project]
 name = "pykalshi"
-version = "0.3.6"
+version = "0.3.7"
 description = "A typed Python client for the Kalshi prediction markets API with WebSocket streaming, automatic retries, and ergonomic interfaces"
 readme = "README.md"
 license = "MIT"
@@ -34,6 +34,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Financial :: Investment",
     "Typing :: Typed",
 ]
